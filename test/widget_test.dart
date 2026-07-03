@@ -370,7 +370,7 @@ void main() {
     await tester.tap(find.byIcon(Icons.push_pin_outlined));
     await tester.pumpAndSettle();
 
-    expect(find.byIcon(Icons.push_pin_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.push_pin), findsOneWidget);
 
     await tester.tap(find.byIcon(Icons.opacity));
     await tester.pumpAndSettle();
