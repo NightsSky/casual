@@ -1,0 +1,289 @@
+{
+  "appTitle": "GitNote",
+  "@appTitle": {
+    "description": "Application title"
+  },
+  "notes": "Notes",
+  "search": "Search",
+  "repository": "Repository",
+  "settings": "Settings",
+  "versionLabel": "v0.1.0",
+  "untitledNote": "Untitled note",
+  "uncategorized": "Uncategorized",
+  "newNote": "New note",
+  "edit": "Edit",
+  "preview": "Preview",
+  "syncToRemote": "Sync to remote",
+  "manageTags": "Manage tags",
+  "exportMarkdown": "Export Markdown",
+  "deleteNote": "Delete note",
+  "enterTitle": "Enter a title...",
+  "addTag": "Add tag",
+  "addTagButton": "+ Tag",
+  "enterTagName": "Enter a tag name",
+  "cancel": "Cancel",
+  "add": "Add",
+  "startWriting": "Start writing... (Markdown supported)",
+  "wordCountFooter": "{count} chars · {time}",
+  "@wordCountFooter": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "configureGitFirst": "Please configure Git first",
+  "syncSuccess": "Sync complete",
+  "syncFailedMessage": "Sync failed: {error}",
+  "@syncFailedMessage": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteFailedMessage": "Delete failed: {error}",
+  "@deleteFailedMessage": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "markdownReady": "Markdown content is ready to export",
+  "confirmDelete": "Confirm delete",
+  "confirmDeleteNote": "Delete \"{title}\"?",
+  "@confirmDeleteNote": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "delete": "Delete",
+  "all": "All",
+  "noNotesYet": "No notes yet",
+  "createFirstNote": "Tap + to create your first note",
+  "pin": "Pin",
+  "localStatus": "Local",
+  "conflictStatus": "Conflict",
+  "noContent": "No content",
+  "sortByUpdated": "Recently updated",
+  "sortByCreated": "Created time",
+  "sortByTitle": "Title",
+  "syncInProgress": "Syncing...",
+  "syncFailedShort": "Sync failed",
+  "lastSyncedAt": "Last synced: {date}",
+  "@lastSyncedAt": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "neverSynced": "Not synced yet",
+  "repositoryManagement": "Repository",
+  "notConnected": "Not connected",
+  "connected": "Connected",
+  "configureGitPlatformInSettings": "Configure your Git platform in Settings",
+  "quickActions": "Quick actions",
+  "syncStats": "Sync stats",
+  "syncLogs": "Sync logs",
+  "pullRemote": "Pull remote",
+  "pushLocal": "Push local",
+  "fullSync": "Full sync",
+  "repositorySettings": "Repository settings",
+  "totalNotes": "Total notes",
+  "unsyncedNotes": "Unsynced",
+  "syncedNotes": "Synced",
+  "conflicts": "Conflicts",
+  "noSyncLogs": "No sync logs yet",
+  "pulledRemoteNotes": "Pulled {count} remote notes successfully",
+  "@pulledRemoteNotes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pushSummary": "Pushed {successCount}/{totalCount} notes successfully",
+  "@pushSummary": {
+    "placeholders": {
+      "successCount": {
+        "type": "int"
+      },
+      "totalCount": {
+        "type": "int"
+      }
+    }
+  },
+  "fullSyncSummary": "Full sync finished, pulled {count} remote notes",
+  "@fullSyncSummary": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "searchNotes": "Search notes...",
+  "enterKeywordToSearch": "Enter keywords to search notes",
+  "recentSearches": "Recent searches",
+  "clear": "Clear",
+  "noSearchResults": "No matching notes found",
+  "searchResultsCount": "{count} results",
+  "@searchResultsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "gitPlatformConfig": "Git platform",
+  "platform": "Platform",
+  "accessToken": "Access Token",
+  "enterToken": "Enter token",
+  "ownerOrOrg": "Owner / Org",
+  "ownerHint": "e.g. username",
+  "repoName": "Repository",
+  "repoHint": "e.g. my-notes",
+  "branch": "Branch",
+  "branchHint": "Default: main",
+  "notesDirectory": "Notes directory",
+  "notesDirectoryHint": "Default: notes",
+  "testConnection": "Test connection",
+  "connectedShort": "Connected",
+  "saveConfig": "Save config",
+  "syncSettings": "Sync settings",
+  "autoSync": "Auto sync",
+  "autoSyncDescription": "Pull remote notes on app launch",
+  "autoPush": "Auto push while editing",
+  "autoPushDescription": "Push changes after saving notes",
+  "about": "About",
+  "version": "Version",
+  "clearAllData": "Clear all data",
+  "choosePlatform": "Choose platform",
+  "saved": "Saved",
+  "connectionSuccess": "Connection successful",
+  "connectionFailed": "Connection failed",
+  "warning": "Warning",
+  "clearAllConfirm": "Clear all local data? This cannot be undone.",
+  "cleared": "Cleared",
+  "loading": "Loading...",
+  "tokenHelpTitle": "Access Token Help",
+  "tokenHelpButton": "How to get an Access Token",
+  "tokenHelpIntro": "GitNote needs an access token to read and update your configured notes repository. Prefer granting access only to the notes repository, and treat the token like a password.",
+  "githubTokenTitle": "GitHub",
+  "githubTokenStep1": "Open GitHub, click your profile picture in the upper-right corner, then open Settings.",
+  "githubTokenStep2": "Open Developer settings > Personal access tokens > Fine-grained tokens.",
+  "githubTokenStep3": "Click Generate new token, then fill in Token name and Expiration.",
+  "githubTokenStep4": "For Repository access, select the repository GitNote will use.",
+  "githubTokenStep5": "Under Repository permissions, set Contents to Read and write, then generate and copy the token.",
+  "githubClassicTokenTip": "If you use a classic token, select the repo scope. A fine-grained token is better when GitNote only needs one notes repository.",
+  "githubTokenOfficialEntrance": "Official entry: https://github.com/settings/personal-access-tokens",
+  "giteeTokenTitle": "Gitee",
+  "giteeTokenStep1": "Open Gitee, click your profile picture in the upper-right corner, then open Settings.",
+  "giteeTokenStep2": "Open Security settings > Personal access tokens, then click Generate new token.",
+  "giteeTokenStep3": "Fill in a token description and choose a suitable expiration time.",
+  "giteeTokenStep4": "Select the project permission so GitNote can read, create, and update files in the notes repository.",
+  "giteeTokenStep5": "Click Submit, complete password verification, then copy the generated personal token.",
+  "giteeTokenTip": "The Gitee personal token is the Access Token to paste here. If the repository belongs to an organization, make sure your account can access it.",
+  "giteeTokenOfficialEntrance": "Official entry: https://gitee.com/profile/personal_access_tokens",
+  "tokenSafetyTitle": "Save and paste",
+  "tokenSafetyBody": "Tokens are usually shown in full only once, so copy and save yours immediately. Do not put it in public notes, screenshots, or commits. If it may have leaked, delete the old token and generate a new one.",
+  "tokenPasteTip": "After copying it, return to Settings, paste it into Access Token, save the configuration, and test the connection.",
+  "reminder": "Assistant",
+  "reminders": "Assistants",
+  "addReminder": "Add Assistant",
+  "editReminder": "Edit Assistant",
+  "reminderTitle": "Title",
+  "reminderTime": "Reminder Time",
+  "reminderRepeat": "Repeat",
+  "reminderEnabled": "Enabled",
+  "reminderNone": "None",
+  "reminderDaily": "Daily",
+  "reminderWeekly": "Weekly",
+  "reminderMonthly": "Monthly",
+  "reminderWeekdays": "Weekdays",
+  "reminderInterval": "Interval",
+  "reminderIntervalEvery": "Every {duration}",
+  "@reminderIntervalEvery": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "durationHours": "{count} hr",
+  "@durationHours": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "durationMinutes": "{count} min",
+  "@durationMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "reminderIntervalHoursLabel": "Hours",
+  "reminderIntervalMinutesLabel": "Minutes",
+  "reminderIntervalHint": "Starts timing when saved, then repeats at the chosen interval",
+  "reminderCustom": "Custom",
+  "noRemindersYet": "No assistants yet",
+  "createFirstReminder": "Tap + in the top-right corner to create your first assistant",
+  "deleteReminder": "Delete Assistant",
+  "confirmDeleteReminder": "Delete \"{title}\"?",
+  "@confirmDeleteReminder": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "reminderSaved": "Assistant saved",
+  "enterReminderTitle": "Enter a title...",
+  "selectTime": "Select time",
+  "save": "Save",
+  "confirm": "OK",
+  "windowSettings": "Window",
+  "closeButtonAction": "When closing the main window",
+  "closeActionAsk": "Ask every time",
+  "closeActionMinimize": "Minimize to system tray",
+  "closeActionExit": "Exit the app",
+  "closeDialogTitle": "Close GitNote",
+  "closeDialogMessage": "Choose what happens when you click the close button:",
+  "closeDialogRemember": "Don''t ask again (changeable in Settings)",
+  "trayShowWindow": "Show GitNote",
+  "trayExit": "Exit",
+  "openInNewWindow": "Open in new window",
+  "noteDetachedTooltip": "Opened in a separate window",
+  "noteDetachedBanner": "This note is being edited in a separate window and is read-only here",
+  "focusNoteWindow": "Focus window",
+  "noteWindowWordCount": "{count} chars",
+  "@noteWindowWordCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noteWindowPinToTop": "Keep on top",
+  "noteWindowUnpinFromTop": "Stop keeping on top",
+  "noteWindowOpacity": "Window opacity",
+  "noteWindowOpacityValue": "{percent}%",
+  "@noteWindowOpacityValue": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "noteWindowUnreachable": "Cannot reach the main window; edits are not being saved"
+}

@@ -1,0 +1,55 @@
+name: gitnote_flutter
+description: 基于 GitHub/Gitee 的笔记本应用 - Flutter 版
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: '>=3.5.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  flutter_web_plugins:
+    sdk: flutter
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.5
+  shared_preferences: ^2.2.3
+  http: ^1.2.1
+  flutter_markdown_plus: ^1.0.7
+  markdown: ^7.2.1
+  intl: any
+  timeago: ^3.7.0
+  uuid: ^4.4.0
+  path: ^1.9.0
+  collection: ^1.18.0
+  go_router: ^14.8.1
+  flutter_local_notifications: ^18.0.1
+  android_alarm_manager_plus: ^4.0.3
+  timezone: ^0.9.4
+  flutter_timezone: ^3.0.1
+  local_notifier: 0.1.6
+  window_manager: ^0.5.1
+  tray_manager: ^0.5.3
+  # 多窗口支持（仅 Windows/macOS/Linux 桌面生效，移动端构建自动忽略）
+  desktop_multi_window: ^0.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  build_runner: ^2.4.9
+  riverpod_generator: ^2.4.0
+
+flutter:
+  generate: true
+  uses-material-design: true
+  assets:
+    - assets/tray_icon.ico
+  # fonts:
+  #   - family: NotoSansSC
+  #     fonts:
+  #       - asset: fonts/NotoSansSC-Regular.ttf
+  #       - asset: fonts/NotoSansSC-Bold.ttf
+  #         weight: 700
