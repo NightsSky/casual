@@ -62,7 +62,7 @@ class WindowService with TrayListener {
     if (!isDesktopWindows) return;
 
     await trayManager.setIcon('assets/tray_icon.ico');
-    await trayManager.setToolTip('GitNote');
+    await trayManager.setToolTip('casual');
     await trayManager.setContextMenu(
       Menu(
         items: [

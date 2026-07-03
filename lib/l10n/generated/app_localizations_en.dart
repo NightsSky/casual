@@ -9,7 +9,7 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appTitle => 'GitNote';
+  String get appTitle => 'casual';
 
   @override
   String get notes => 'Notes';
@@ -338,7 +338,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tokenHelpIntro =>
-      'GitNote needs an access token to read and update your configured notes repository. Prefer granting access only to the notes repository, and treat the token like a password.';
+      'casual needs an access token to read and update your configured notes repository. Prefer granting access only to the notes repository, and treat the token like a password.';
 
   @override
   String get githubTokenTitle => 'GitHub';
@@ -357,7 +357,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get githubTokenStep4 =>
-      'For Repository access, select the repository GitNote will use.';
+      'For Repository access, select the repository casual will use.';
 
   @override
   String get githubTokenStep5 =>
@@ -365,7 +365,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get githubClassicTokenTip =>
-      'If you use a classic token, select the repo scope. A fine-grained token is better when GitNote only needs one notes repository.';
+      'If you use a classic token, select the repo scope. A fine-grained token is better when casual only needs one notes repository.';
 
   @override
   String get githubTokenOfficialEntrance =>
@@ -388,7 +388,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get giteeTokenStep4 =>
-      'Select the project permission so GitNote can read, create, and update files in the notes repository.';
+      'Select the project permission so casual can read, create, and update files in the notes repository.';
 
   @override
   String get giteeTokenStep5 =>
@@ -529,7 +529,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get closeActionExit => 'Exit the app';
 
   @override
-  String get closeDialogTitle => 'Close GitNote';
+  String get closeDialogTitle => 'Close casual';
 
   @override
   String get closeDialogMessage =>
@@ -539,7 +539,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get closeDialogRemember => 'Don\'t ask again (changeable in Settings)';
 
   @override
-  String get trayShowWindow => 'Show GitNote';
+  String get trayShowWindow => 'Show casual';
 
   @override
   String get trayExit => 'Exit';

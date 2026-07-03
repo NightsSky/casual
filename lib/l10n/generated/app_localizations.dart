@@ -101,7 +101,7 @@ abstract class AppLocalizations {
   /// Application title
   ///
   /// In en, this message translates to:
-  /// **'GitNote'**
+  /// **'casual'**
   String get appTitle;
 
   /// No description provided for @notes.
@@ -719,7 +719,7 @@ abstract class AppLocalizations {
   /// No description provided for @tokenHelpIntro.
   ///
   /// In en, this message translates to:
-  /// **'GitNote needs an access token to read and update your configured notes repository. Prefer granting access only to the notes repository, and treat the token like a password.'**
+  /// **'casual needs an access token to read and update your configured notes repository. Prefer granting access only to the notes repository, and treat the token like a password.'**
   String get tokenHelpIntro;
 
   /// No description provided for @githubTokenTitle.
@@ -749,7 +749,7 @@ abstract class AppLocalizations {
   /// No description provided for @githubTokenStep4.
   ///
   /// In en, this message translates to:
-  /// **'For Repository access, select the repository GitNote will use.'**
+  /// **'For Repository access, select the repository casual will use.'**
   String get githubTokenStep4;
 
   /// No description provided for @githubTokenStep5.
@@ -761,7 +761,7 @@ abstract class AppLocalizations {
   /// No description provided for @githubClassicTokenTip.
   ///
   /// In en, this message translates to:
-  /// **'If you use a classic token, select the repo scope. A fine-grained token is better when GitNote only needs one notes repository.'**
+  /// **'If you use a classic token, select the repo scope. A fine-grained token is better when casual only needs one notes repository.'**
   String get githubClassicTokenTip;
 
   /// No description provided for @githubTokenOfficialEntrance.
@@ -797,7 +797,7 @@ abstract class AppLocalizations {
   /// No description provided for @giteeTokenStep4.
   ///
   /// In en, this message translates to:
-  /// **'Select the project permission so GitNote can read, create, and update files in the notes repository.'**
+  /// **'Select the project permission so casual can read, create, and update files in the notes repository.'**
   String get giteeTokenStep4;
 
   /// No description provided for @giteeTokenStep5.
@@ -1049,7 +1049,7 @@ abstract class AppLocalizations {
   /// No description provided for @closeDialogTitle.
   ///
   /// In en, this message translates to:
-  /// **'Close GitNote'**
+  /// **'Close casual'**
   String get closeDialogTitle;
 
   /// No description provided for @closeDialogMessage.
@@ -1067,7 +1067,7 @@ abstract class AppLocalizations {
   /// No description provided for @trayShowWindow.
   ///
   /// In en, this message translates to:
-  /// **'Show GitNote'**
+  /// **'Show casual'**
   String get trayShowWindow;
 
   /// No description provided for @trayExit.

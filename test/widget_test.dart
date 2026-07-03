@@ -8,17 +8,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:gitnote_flutter/data/repositories/git_sync_repository.dart';
-import 'package:gitnote_flutter/data/services/gitee_service.dart';
-import 'package:gitnote_flutter/data/services/github_service.dart';
-import 'package:gitnote_flutter/domain/models/models.dart';
-import 'package:gitnote_flutter/l10n/generated/app_localizations.dart';
-import 'package:gitnote_flutter/main.dart';
-import 'package:gitnote_flutter/pages/note_window_page.dart';
-import 'package:gitnote_flutter/pages/notes_page.dart';
-import 'package:gitnote_flutter/providers/git_provider.dart';
-import 'package:gitnote_flutter/providers/notes_provider.dart';
-import 'package:gitnote_flutter/services/note_window_service.dart';
+import 'package:casual/data/repositories/git_sync_repository.dart';
+import 'package:casual/data/services/gitee_service.dart';
+import 'package:casual/data/services/github_service.dart';
+import 'package:casual/domain/models/models.dart';
+import 'package:casual/l10n/generated/app_localizations.dart';
+import 'package:casual/main.dart';
+import 'package:casual/pages/note_window_page.dart';
+import 'package:casual/pages/notes_page.dart';
+import 'package:casual/providers/git_provider.dart';
+import 'package:casual/providers/notes_provider.dart';
+import 'package:casual/services/note_window_service.dart';
 
 class _FakeGitHubService extends GitHubService {
   @override
@@ -246,7 +246,7 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: GitNoteApp()));
     await tester.pumpAndSettle();
 
-    expect(find.text('GitNote'), findsOneWidget);
+    expect(find.text('casual'), findsOneWidget);
     expect(find.text('No notes yet'), findsOneWidget);
     expect(find.byIcon(Icons.add), findsOneWidget);
   });

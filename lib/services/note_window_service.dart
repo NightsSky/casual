@@ -70,7 +70,7 @@ class NoteWindowService {
     await controller.setFrame(
       Offset(160 + cascade, 120 + cascade) & _windowSize,
     );
-    await controller.setTitle(note.title.isEmpty ? 'GitNote' : note.title);
+    await controller.setTitle(note.title.isEmpty ? 'casual' : note.title);
     await controller.show();
 
     _noteWindows[note.id] = controller.windowId;

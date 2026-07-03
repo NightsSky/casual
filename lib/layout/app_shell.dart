@@ -75,7 +75,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                     color: AppColors.primary, size: 28),
                 const SizedBox(width: AppSpacing.sm),
                 Text(
-                  'GitNote',
+                  'casual',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         color: AppColors.primary,
                         fontWeight: FontWeight.w700,

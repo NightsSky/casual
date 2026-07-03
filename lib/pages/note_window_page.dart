@@ -38,7 +38,7 @@ class NoteWindowApp extends StatelessWidget {
     );
 
     return MaterialApp(
-      title: 'GitNote',
+      title: 'casual',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       localizationsDelegates: const [

@@ -9,7 +9,7 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
-  String get appTitle => 'GitNote';
+  String get appTitle => 'casual';
 
   @override
   String get notes => '笔记';
@@ -337,7 +337,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get tokenHelpIntro =>
-      'GitNote 需要 Access Token 读取和更新你配置的笔记仓库。建议只给当前笔记仓库授权，并把 token 当作密码保管。';
+      'casual 需要 Access Token 读取和更新你配置的笔记仓库。建议只给当前笔记仓库授权，并把 token 当作密码保管。';
 
   @override
   String get githubTokenTitle => 'GitHub 获取方式';
@@ -354,7 +354,7 @@ class AppLocalizationsZh extends AppLocalizations {
       '点击 Generate new token，填写 Token name 和 Expiration。';
 
   @override
-  String get githubTokenStep4 => 'Repository access 选择 GitNote 使用的仓库。';
+  String get githubTokenStep4 => 'Repository access 选择 casual 使用的仓库。';
 
   @override
   String get githubTokenStep5 =>
@@ -518,7 +518,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get closeActionExit => '退出程序';
 
   @override
-  String get closeDialogTitle => '关闭 GitNote';
+  String get closeDialogTitle => '关闭 casual';
 
   @override
   String get closeDialogMessage => '请选择点击关闭按钮后的操作：';

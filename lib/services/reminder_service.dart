@@ -35,7 +35,7 @@ class ReminderService {
 
     if (_useLocalNotifier) {
       await localNotifier.setup(
-        appName: 'GitNote',
+        appName: 'casual',
         shortcutPolicy: ShortcutPolicy.requireCreate,
       );
     } else {
@@ -252,7 +252,7 @@ class ReminderService {
   Future<void> _showWindowsNotification(Reminder reminder) async {
     try {
       final notification = LocalNotification(
-        title: 'GitNote 助手',
+        title: 'casual 助手',
         body: reminder.title,
       );
       await notification.show();
@@ -305,7 +305,7 @@ class ReminderService {
       case RepeatType.none:
         await _mobilePlugin.zonedSchedule(
           notificationId,
-          'GitNote 助手',
+          'casual 助手',
           reminder.title,
           scheduledDate,
           details,
@@ -318,7 +318,7 @@ class ReminderService {
       case RepeatType.daily:
         await _mobilePlugin.zonedSchedule(
           notificationId,
-          'GitNote 助手',
+          'casual 助手',
           reminder.title,
           _nextInstanceOfTime(scheduledDate.hour, scheduledDate.minute),
           details,
@@ -332,7 +332,7 @@ class ReminderService {
       case RepeatType.weekly:
         await _mobilePlugin.zonedSchedule(
           notificationId,
-          'GitNote 助手',
+          'casual 助手',
           reminder.title,
           _nextInstanceOfDayAndTime(
               scheduledDate.weekday, scheduledDate.hour, scheduledDate.minute),
@@ -348,7 +348,7 @@ class ReminderService {
         for (int day = DateTime.monday; day <= DateTime.friday; day++) {
           await _mobilePlugin.zonedSchedule(
             notificationId + day,
-            'GitNote 助手',
+            'casual 助手',
             reminder.title,
             _nextInstanceOfDayAndTime(
                 day, scheduledDate.hour, scheduledDate.minute),
@@ -364,7 +364,7 @@ class ReminderService {
       case RepeatType.monthly:
         await _mobilePlugin.zonedSchedule(
           notificationId,
-          'GitNote 助手',
+          'casual 助手',
           reminder.title,
           _nextInstanceOfMonthAndTime(
               scheduledDate.day, scheduledDate.hour, scheduledDate.minute),
@@ -383,7 +383,7 @@ class ReminderService {
         if (minutes <= 0) break;
         await _mobilePlugin.periodicallyShowWithDuration(
           notificationId,
-          'GitNote 助手',
+          'casual 助手',
           reminder.title,
           Duration(minutes: minutes),
           details,
