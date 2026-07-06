@@ -24,6 +24,8 @@ dependencies:
   uuid: ^4.4.0
   path: ^1.9.0
   collection: ^1.18.0
+  # 同步引擎：本地计算 git blob sha（SHA-1 内容寻址），见 doc/sync-design.md §6.1
+  crypto: ^3.0.3
   go_router: ^14.8.1
   flutter_local_notifications: ^18.0.1
   android_alarm_manager_plus: ^4.0.3

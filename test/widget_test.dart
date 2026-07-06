@@ -8,235 +8,39 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:casual/data/repositories/git_sync_repository.dart';
-import 'package:casual/data/services/gitee_service.dart';
-import 'package:casual/data/services/github_service.dart';
+import 'package:casual/data/sync/remote/remote_repo.dart';
+import 'package:casual/data/sync/sync_engine_provider.dart';
+import 'package:casual/data/sync/sync_planner.dart' show RemoteFileState;
 import 'package:casual/domain/models/models.dart';
 import 'package:casual/l10n/generated/app_localizations.dart';
 import 'package:casual/main.dart';
 import 'package:casual/pages/note_window_page.dart';
 import 'package:casual/pages/notes_page.dart';
-import 'package:casual/providers/git_provider.dart';
-import 'package:casual/providers/notes_provider.dart';
 import 'package:casual/services/note_window_service.dart';
 
-class _FakeGitHubService extends GitHubService {
+/// 空远端：head 为 null（等价空仓库），不产生任何网络请求。
+/// 让走 v2 引擎的同步在测试中稳定跑通（无真实 GitHub Git Data API）。
+class _EmptyRemote implements RemoteRepo {
   @override
-  Future<List<Map<String, dynamic>>> listFiles({
-    required String owner,
-    required String repo,
-    required String branch,
-    required String token,
-    String path = '',
-  }) async {
-    return [];
-  }
-}
-
-class _SyncOrderGitHubService extends GitHubService {
-  final calls = <String>[];
-  String remoteContent = 'remote old';
-  String remoteSha = 'old-sha';
+  Future<String?> fetchHead() async => null;
 
   @override
-  Future<String?> getFileSha({
-    required String owner,
-    required String repo,
-    required String path,
-    required String token,
-    required String branch,
-  }) async {
-    calls.add('sha:$path');
-    return remoteSha;
-  }
+  Future<List<RemoteFileState>> listTree(String headSha) async => const [];
 
   @override
-  Future<List<Map<String, dynamic>>> listFiles({
-    required String owner,
-    required String repo,
-    required String branch,
-    required String token,
-    String path = '',
-  }) async {
-    calls.add('list');
-    return [
-      {
-        'name': 'Draft.txt',
-        'path': 'notes/Draft.txt',
-        'type': 'file',
-        'sha': remoteSha,
-      },
-    ];
-  }
+  Future<String> fetchBlob(String blobSha) async => '';
 
   @override
-  Future<String> getFileContent({
-    required String owner,
-    required String repo,
-    required String path,
-    required String token,
-    required String branch,
-  }) async {
-    calls.add('content');
-    return remoteContent;
-  }
+  Future<RemoteCommitResult> commitChanges(RemoteCommitRequest request) async =>
+      const RemoteCommitResult();
 
   @override
-  Future<Map<String, dynamic>> createOrUpdateFile({
-    required String owner,
-    required String repo,
-    required String path,
-    required String content,
-    required String message,
-    required String token,
-    required String branch,
-    String? sha,
-  }) async {
-    calls.add('push:$content');
-    remoteContent = content;
-    remoteSha = 'new-sha';
-    return {
-      'content': {'sha': remoteSha},
-    };
-  }
-}
-
-class _PushShaGitHubService extends GitHubService {
-  String? pushedSha;
-
-  @override
-  Future<String?> getFileSha({
-    required String owner,
-    required String repo,
-    required String path,
-    required String token,
-    required String branch,
-  }) async {
-    return 'remote-sha';
-  }
-
-  @override
-  Future<Map<String, dynamic>> createOrUpdateFile({
-    required String owner,
-    required String repo,
-    required String path,
-    required String content,
-    required String message,
-    required String token,
-    required String branch,
-    String? sha,
-  }) async {
-    pushedSha = sha;
-    return {
-      'content': {'sha': 'new-sha'},
-    };
-  }
+  Future<DateTime?> fetchLastCommitTime(String path) async => null;
 }
 
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
-  });
-
-  test('full sync pushes local edits before importing remote notes', () async {
-    final gitHubService = _SyncOrderGitHubService();
-    final container = ProviderContainer(
-      overrides: [
-        gitHubServiceProvider.overrideWithValue(gitHubService),
-      ],
-    );
-    addTearDown(container.dispose);
-
-    container.read(gitProvider.notifier).setConfig(
-          const GitConfig(
-            platform: GitPlatform.github,
-            token: 'token',
-            owner: 'owner',
-            repo: 'repo',
-          ),
-        );
-
-    final notesNotifier = container.read(notesProvider.notifier);
-    final note = notesNotifier.createNote(
-      title: 'Draft',
-      content: 'remote old',
-    );
-    notesNotifier.markSynced(note.id, 'notes/Draft.txt', sha: 'old-sha');
-    notesNotifier.updateNote(note.id, content: 'local edited');
-
-    final remoteNotes = await container.read(gitProvider.notifier).fullSync();
-    for (final note in remoteNotes) {
-      notesNotifier.importNote(note);
-    }
-
-    final syncedNote = container.read(notesProvider).notes.single;
-    expect(gitHubService.calls, [
-      'sha:notes/Draft.txt',
-      'push:local edited',
-      'list',
-      'content',
-    ]);
-    expect(syncedNote.content, 'local edited');
-    expect(syncedNote.syncStatus, SyncStatus.synced);
-    expect(syncedNote.sha, 'new-sha');
-  });
-
-  test('push note fills missing local sha from remote file', () async {
-    final gitHubService = _PushShaGitHubService();
-    final repository = GitSyncRepository(
-      gitHubService: gitHubService,
-      giteeService: GiteeService(),
-    );
-
-    final result = await repository.pushNote(
-      const GitConfig(
-        platform: GitPlatform.github,
-        token: 'token',
-        owner: 'owner',
-        repo: 'repo',
-      ),
-      Note(
-        id: 'note',
-        title: 'Draft',
-        content: 'local edited',
-        filePath: 'notes/Draft.txt',
-      ),
-    );
-
-    expect(gitHubService.pushedSha, 'remote-sha');
-    expect(result?['filePath'], 'notes/Draft.txt');
-    expect(result?['sha'], 'new-sha');
-  });
-
-  test('remote import marks unsynced local edits as conflict', () {
-    final container = ProviderContainer();
-    addTearDown(container.dispose);
-
-    final notesNotifier = container.read(notesProvider.notifier);
-    final note = notesNotifier.createNote(
-      title: 'Draft',
-      content: 'remote old',
-    );
-    notesNotifier.markSynced(note.id, 'notes/Draft.txt', sha: 'old-sha');
-    notesNotifier.updateNote(note.id, content: 'local edited');
-
-    // 远程更新时间不可靠时也不能覆盖本地未同步编辑，只能进入冲突态等待用户处理。
-    notesNotifier.importNote(
-      Note(
-        id: '',
-        title: 'Draft',
-        content: 'remote changed',
-        filePath: 'notes/Draft.txt',
-        sha: 'remote-sha',
-        updatedAt: DateTime.now().add(const Duration(minutes: 1)),
-        syncStatus: SyncStatus.synced,
-      ),
-    );
-
-    final conflictNote = container.read(notesProvider).notes.single;
-    expect(conflictNote.content, 'local edited');
-    expect(conflictNote.syncStatus, SyncStatus.conflict);
-    expect(conflictNote.sha, 'remote-sha');
   });
 
   testWidgets('app boots into notes view', (tester) async {
@@ -296,7 +100,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          gitHubServiceProvider.overrideWithValue(_FakeGitHubService()),
+          remoteRepoFactoryProvider.overrideWithValue((_) => _EmptyRemote()),
         ],
         child: const GitNoteApp(),
       ),

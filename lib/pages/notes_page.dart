@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../data/sync/sync_engine.dart';
 import '../models/models.dart';
 import '../providers/notes_provider.dart';
 import '../providers/git_provider.dart';
@@ -7,6 +8,7 @@ import '../providers/search_provider.dart';
 import '../services/note_window_service.dart';
 import '../theme/constants.dart';
 import '../ui/core/extensions/build_context_l10n.dart';
+import '../ui/widgets/conflict_resolution_dialog.dart';
 import '../utils/common_utils.dart';
 import '../utils/markdown_utils.dart';
 
@@ -338,24 +340,16 @@ class _NotesPageState extends ConsumerState<NotesPage> {
 
   Future<void> _deleteNote(String id) async {
     final notesNotifier = ref.read(notesProvider.notifier);
-    final gitNotifier = ref.read(gitProvider.notifier);
     final l10n = context.l10n;
     final messenger = ScaffoldMessenger.of(context);
-    final configured = ref.read(gitProvider).config.isConfigured;
 
     ref.read(searchProvider.notifier).clearSearch();
     try {
-      // 已配置 Git 时先删远程，避免删除后下次同步又被拉回来；未配置则仅删本地。
-      await notesNotifier.deleteNoteWithRemote(
-        id,
-        deleteRemote: (filePath, sha) async {
-          if (!configured) return;
-          await gitNotifier.deleteRemoteNote(filePath, sha);
-        },
-      );
+      // v2 同步：删除只删本地，base 表保留作为墓碑，下次同步由引擎按规则 5/8
+      // 传播到远端（本地删+远端改时会保守恢复，不静默丢另一端修改）。
+      notesNotifier.deleteNote(id);
     } catch (e) {
       if (!mounted) return;
-      // 远程删除失败，本地保留笔记，提示用户重试。
       messenger.showSnackBar(
         SnackBar(
           content: Text(l10n.deleteFailedMessage(e.toString())),
@@ -367,7 +361,6 @@ class _NotesPageState extends ConsumerState<NotesPage> {
 
   Future<void> _handleSync() async {
     final gitNotifier = ref.read(gitProvider.notifier);
-    final notesNotifier = ref.read(notesProvider.notifier);
     final l10n = context.l10n;
     final messenger = ScaffoldMessenger.of(context);
     final rootNavigator = Navigator.of(context, rootNavigator: true);
@@ -390,10 +383,7 @@ class _NotesPageState extends ConsumerState<NotesPage> {
         ),
       );
 
-      final remoteNotes = await gitNotifier.fullSync();
-      for (final note in remoteNotes) {
-        notesNotifier.importNote(note);
-      }
+      final report = await gitNotifier.runSync();
 
       if (!mounted) return;
       // 同步进度弹窗挂在根导航器上，关闭时也必须使用根导航器，避免在 /notes 根页误弹空 go_router 分支页面栈。
@@ -401,10 +391,24 @@ class _NotesPageState extends ConsumerState<NotesPage> {
         rootNavigator.pop();
       }
 
+      // 冲突裁决（§7.2）：逐篇弹窗二选一，批量落地后再触发一次同步推送。
+      if (report.pendingConflicts.isNotEmpty) {
+        final resolutions = await _handleConflicts(context, report.pendingConflicts);
+        if (resolutions != null && resolutions.isNotEmpty) {
+          await gitNotifier.resolveConflicts(resolutions);
+          // 用户选了「保留本地」的篇目需推送覆盖远端，再同步一次。
+          if (!mounted) return;
+          await gitNotifier.runSync();
+        }
+      }
+
+      if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(
             content: Text(l10n.syncSuccess),
-            backgroundColor: AppColors.success),
+            backgroundColor: report.failures.isEmpty
+                ? AppColors.success
+                : AppColors.warning),
       );
     } catch (e) {
       if (!mounted) return;
@@ -419,6 +423,34 @@ class _NotesPageState extends ConsumerState<NotesPage> {
         ),
       );
     }
+  }
+
+  /// 逐篇弹冲突对话框收集裁决（doc/sync-design.md §7.2）。
+  /// 用户可中途取消，返回已收集的部分裁决（引擎落地部分即可）。
+  Future<List<ConflictResolution>?> _handleConflicts(
+    BuildContext context,
+    List<SyncConflict> conflicts,
+  ) async {
+    final resolutions = <ConflictResolution>[];
+    for (var i = 0; i < conflicts.length; i++) {
+      final conflict = conflicts[i];
+      if (!mounted) return null;
+      final choice = await showDialog<ConflictChoice>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => ConflictResolutionDialog(
+          conflict: conflict,
+          currentIndex: i,
+          totalCount: conflicts.length,
+        ),
+      );
+      if (choice == null) {
+        // 用户点了取消或按了返回键，中止后续冲突弹窗，返回已收集的部分。
+        break;
+      }
+      resolutions.add(ConflictResolution(conflict: conflict, choice: choice));
+    }
+    return resolutions.isEmpty ? null : resolutions;
   }
 
   String _syncStatusText(BuildContext context, GitState gitState) {

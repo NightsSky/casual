@@ -60,15 +60,26 @@ class Reminder {
   /// 单次提醒时间已过时，滚动到未来最近的同一时分（今天或明天）；
   /// 间隔提醒把计时锚点重置为当前时刻（下次触发 = 现在 + 间隔）。
   /// 其余重复提醒的触发时间由调度层按重复规则计算，无需处理。
-  Reminder rescheduledIfExpired() {
+  Reminder rescheduledIfExpired({DateTime? now}) {
+    final current = now ?? DateTime.now();
     if (repeat == RepeatType.interval) {
-      return copyWith(time: DateTime.now());
+      return copyWith(time: current);
     }
     if (repeat != RepeatType.none) return this;
-    final now = DateTime.now();
-    if (time.isAfter(now)) return this;
-    var next = DateTime(now.year, now.month, now.day, time.hour, time.minute);
-    if (!next.isAfter(now)) {
+    if (time.isAfter(current)) return this;
+    final selectedCurrentMinute = time.year == current.year &&
+        time.month == current.month &&
+        time.day == current.day &&
+        time.hour == current.hour &&
+        time.minute == current.minute;
+    if (selectedCurrentMinute) {
+      // 时间选择器只有分钟粒度，用户选择当前分钟通常是在测试“马上提醒”；
+      // 这里给系统调度留出几秒缓冲，避免被当成过期提醒顺延到明天。
+      return copyWith(time: current.add(const Duration(seconds: 10)));
+    }
+    var next = DateTime(
+        current.year, current.month, current.day, time.hour, time.minute);
+    if (!next.isAfter(current)) {
       next = next.add(const Duration(days: 1));
     }
     return copyWith(time: next);

@@ -32,16 +32,29 @@ lib/
 │       ├── git_config.dart     # Git 配置模型
 │       ├── search_result.dart  # 搜索结果模型
 │       ├── sync_log.dart       # 同步日志模型
+│       ├── note_sync_base.dart # 同步 base 快照模型（上次共识版本，三方合并输入）
 │       └── reminder.dart       # 提醒模型（Reminder + RepeatType）
 ├── data/                        # 数据层
 │   ├── repositories/           # 仓储层
 │   │   ├── notes_repository.dart
 │   │   ├── git_config_repository.dart
 │   │   └── git_sync_repository.dart
-│   └── services/               # 服务层
-│       ├── storage_service.dart    # 本地存储服务
-│       ├── github_service.dart     # GitHub API 服务
-│       └── gitee_service.dart      # Gitee API 服务
+│   ├── services/               # 服务层
+│   │   ├── storage_service.dart    # 本地存储服务
+│   │   ├── github_service.dart     # GitHub API 服务
+│   │   └── gitee_service.dart      # Gitee API 服务
+│   └── sync/                   # 同步引擎 v2（见 doc/sync-design.md，M1/M2/M3 已实施）
+│       ├── blob_sha.dart       # git blob sha 本地计算（内容寻址变更检测）
+│       ├── diff3.dart          # 三方行级合并（node-diff3 移植，与 git merge-file 语义一致）
+│       ├── sync_planner.dart   # 判定表 + 重命名对账 + 路径分配（§6）
+│       ├── note_file_codec.dart # Note ↔ 仓库文件编解码（front-matter 注入/剥离）
+│       ├── sync_base_store.dart # base 快照表持久化（key gitnote_sync_base）
+│       ├── sync_engine.dart    # 同步会话状态机（§8：判定→下载→落盘→提交→重试→落 base）
+│       ├── sync_engine_provider.dart # 引擎 provider + SyncNotesPort 适配 + 可注入 remote 工厂
+│       └── remote/             # 远端仓库抽象（§8.4）
+│           ├── remote_repo.dart    # 接口 + 请求/结果模型 + 类型化异常
+│           ├── github_remote.dart  # Git Data API 原子提交实现
+│           └── gitee_remote.dart   # contents API 逐文件降级实现
 ├── ui/                          # UI 组件
 │   ├── core/
 │   │   └── extensions/
@@ -58,7 +71,8 @@ lib/
 │   └── constants.dart          # 设计常量（颜色、字号、间距等）
 ├── utils/                       # 工具类
 │   ├── common_utils.dart       # 通用工具（时间格式化、屏幕判断等）
-│   └── markdown_utils.dart     # Markdown 处理工具
+│   ├── markdown_utils.dart     # Markdown 处理工具
+│   └── front_matter.dart       # YAML front-matter 子集解析/序列化（同步 v2，外来字段无损保留）
 └── l10n/                        # 国际化
     └── generated/              # 自动生成的多语言文件
 ```

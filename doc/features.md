@@ -58,35 +58,38 @@
 
 ## 2. Git 同步
 
-### 同步逻辑 (`lib/ui/features/git/view_models/git_view_model.dart`)
+> 自 v2 起，同步机制重新设计为**基于 base 快照的双向同步会话**。完整设计与决策见 [同步策略设计](./sync-design.md)。
+
+### 同步逻辑 (`lib/data/sync/sync_engine.dart`)
 
 **支持平台**：
-- GitHub
-- Gitee
+- GitHub（Git Data API 单提交原子写入）
+- Gitee（v5 无 git-data 写端点，降级为逐文件 contents API）
 
 **功能**：
-- 全量同步：先推送本地未同步笔记并记录远程 sha，再拉取远程最新文件导入本地
-- 单条推送：推送单条笔记到远程
-- 远程删除：删除远程仓库中的笔记文件
-- 冲突检测：推送基于文件 SHA 检测远程变化，拉取时保护本地未同步差异
+- **单一同步动作**：不再区分「拉取 / 推送 / 全量」，一次「同步」= 一个完整双向会话，自动判定每篇笔记该拉、该推、该合并还是该删除
+- **文档身份**：Markdown 以文件头 front-matter `id` 标识身份，改标题不会产生重复文件；txt 降级为路径身份
+- **变更判定**：以本地自算的 git blob sha 与 base 快照、远端清单三方比对（内容寻址，不依赖设备时钟）
+- **冲突处理**：双端都改过同一篇（判定表规则 4）时绝不静默覆盖。当前 M3 代码为「diff3 自动合并 + 合不动则生成冲突副本」；M4 起冲突策略已定为**二选一**——弹窗展示本地与远端最后更新时间，用户逐篇选「保留本地 / 用远程覆盖 / 取消跳过」，不再自动合并或留副本（见 [同步策略设计 §7](./sync-design.md)，代码待 M4 替换）
+- **删除传播**：本地删除只删本地、base 表留作墓碑，下次同步传播到远端；本地删+远端改时保守恢复（删除让位于修改）
+- **原子性 / 乐观锁**：GitHub 单提交全成或全败，updateRef 失败自动重试（≤3 次）；Gitee 逐文件失败隔离不中断批次
 
 **关键代码位置**：
-- 全量同步入口：`lib/pages/notes_page.dart:368-422` (`_handleSync`)
-- 全量同步顺序：`lib/ui/features/git/view_models/git_view_model.dart:152-176` (`fullSync`)
-- 远程导入冲突保护：`lib/ui/features/notes/view_models/notes_view_model.dart:269-350` (`importNote`)
-- 单条推送：`lib/pages/editor_page.dart:475-536` (`_syncNote`)
-- 远程删除：`lib/pages/notes_page.dart:339-366` (`_deleteNote` with `deleteRemote`)
+- 同步入口（笔记页）：`lib/pages/notes_page.dart` (`_handleSync`)
+- 同步入口（仓库页）：`lib/pages/repo_page.dart` (`_sync`)
+- 会话驱动：`lib/ui/features/git/view_models/git_view_model.dart` (`runSync`)
+- 会话状态机：`lib/data/sync/sync_engine.dart` (`SyncEngine.sync`)
+- 判定表：`lib/data/sync/sync_planner.dart` (`planSync`)
+- 三方合并：`lib/data/sync/diff3.dart`
+- 远端抽象：`lib/data/sync/remote/`（`github_remote.dart` / `gitee_remote.dart`）
+- 状态回写口：`lib/ui/features/notes/view_models/notes_view_model.dart`（`applyRemoteUpsert` 等 `SyncNotesPort` 方法）
+- base 表持久化：`lib/data/sync/sync_base_store.dart`
 
-**API 服务**：
-- GitHub: `lib/data/services/github_service.dart`
-- Gitee: `lib/data/services/gitee_service.dart`
-
-**核心方法**：
-- `listFiles()` - 递归列出仓库中所有文件
-- `getFileContent()` - 获取文件内容（Base64 解码）
-- `createOrUpdateFile()` - 创建或更新文件（Base64 编码）
-- `deleteFile()` - 删除文件
-- `getFileSha()` - 查询文件当前 SHA 值
+**远端层核心方法**（`RemoteRepo` 接口）：
+- `fetchHead()` - 取分支 head commit sha
+- `listTree()` - 递归列出全仓库 `path → blobSha` 清单（一个请求）
+- `fetchBlob()` - 按 blob sha 读取内容（不受 contents API 1MB 限制）
+- `commitChanges()` - 提交一批写入/删除（GitHub 原子 / Gitee 逐文件）
 
 ## 3. 搜索功能（遗留代码，已废弃）
 
@@ -111,13 +114,13 @@
 - 新建/编辑提醒（对话框：标题 + 时间选择器 + 重复方式下拉框；选择「按间隔」时改为小时/分钟间隔选择器）
 - 开关单条提醒（Switch）
 - 删除提醒（二次确认）
-- 到达设定时间后弹出系统通知，标题为「GitNote 助手」
+- 到达设定时间后弹出系统通知，标题为「casual 助手」
 
 **重复方式**（`RepeatType`，见 `lib/domain/models/reminder.dart:3-11`）：
 
 | 类型 | 说明 |
 |------|------|
-| `none` | 单次提醒（时间已过则不触发） |
+| `none` | 单次提醒（新建默认下一分钟；选择当前分钟时按马上提醒处理；更早时间会顺延到明天） |
 | `daily` | 每天 |
 | `weekly` | 每周（按创建时间的星期几） |
 | `monthly` | 每月（按创建时间的日期） |
@@ -151,8 +154,10 @@
 - 初始化时通过 `flutter_timezone` 获取设备时区并调用 `tz.setLocalLocation()`（否则 `tz.local` 默认 UTC，非 UTC 时区的触发时间会偏移）
 - 时刻型重复使用 `zonedSchedule` 注册到系统通知调度，按重复类型设置 `matchDateTimeComponents`
 - `interval` 类型使用 `periodicallyShowWithDuration` 注册系统级周期通知，首次触发为注册后一个间隔
-- Android 使用 `AndroidScheduleMode.exactAllowWhileIdle` 精确调度，启动时请求通知权限
-- 关键代码：`lib/services/reminder_service.dart:270-397`（`_scheduleMobileReminder`）
+- Android 启动时请求通知权限；保存提醒时优先使用 `AndroidScheduleMode.exactAllowWhileIdle`，若系统未授予精确闹钟权限，则降级为 `inexactAllowWhileIdle`，避免提醒完全不触发
+- Android 使用 `assistant_alarm_channel` 闹钟提醒渠道，通知类别为 `alarm`，重要性为 `max`，用于提升横幅、声音和锁屏提醒的优先级
+- Android Manifest 声明了 `SCHEDULE_EXACT_ALARM`、`RECEIVE_BOOT_COMPLETED` 以及 `flutter_local_notifications` 的定时接收器，支持系统到点唤醒和重启/应用更新后恢复已注册提醒
+- 关键代码：`lib/services/reminder_service.dart:270-427`（`_scheduleMobileReminder`、`_resolveAndroidScheduleMode`）
 
 **启动恢复**：
 - 应用启动时 `AppBootstrapGate._bootstrap()` 读取 `reminderProvider`（`lib/main.dart:198-204`）
@@ -164,10 +169,11 @@
 ### 已知限制与注意事项
 
 1. **应用必须保持运行**：Windows 端提醒完全依赖应用内 Timer，应用退出后不会触发任何通知；最小化不影响。移动端由系统调度，但应用被强杀后部分 ROM 可能不触发。
-2. **过期单次提醒自动顺延**：保存或重新启用 `RepeatType.none` 的提醒时，若所选时分已过会自动顺延到明天同一时间（`Reminder.rescheduledIfExpired()`，见 `lib/domain/models/reminder.dart`）。历史数据中已过期且一直未操作过的单次提醒仍不会触发，重新保存或开关一次即可。
+2. **单次提醒的过期处理**：新建提醒对话框默认选中下一分钟；保存或重新启用 `RepeatType.none` 时，若选择的是当前分钟，会调度到当前时间后 10 秒，便于马上验证提醒；若所选时分早于当前分钟，则自动顺延到明天同一时间（`Reminder.rescheduledIfExpired()`，见 `lib/domain/models/reminder.dart`）。历史数据中已过期且一直未操作过的单次提醒仍不会触发，重新保存或开关一次即可。
 3. **间隔提醒的计时起点**：保存或重新启用 `RepeatType.interval` 的提醒时，计时锚点重置为当前时刻（同为 `rescheduledIfExpired()` 处理）。Windows 端应用重启后按原锚点延续节奏；移动端重启会重新注册 `periodicallyShowWithDuration`，周期从重启时刻重新计（平台差异）。iOS 系统要求周期不低于 60 秒，界面已限制最小间隔为 1 分钟。
-4. **Windows 通知受系统设置影响**：需要在 Windows「设置 → 系统 → 通知」中允许 GitNote 通知；「勿扰模式/专注助手」开启时 Toast 会被抑制。
-5. **`custom` 重复类型未实现**：调度时直接返回 `null`（不调度），界面未提供该选项。
+4. **Android 通知受系统权限影响**：Android 13+ 需要允许通知权限；Android 12+ 若未授予精确闹钟权限，提醒会按系统允许的非精确模式触发，可能有轻微延迟。MIUI 等系统还可能按渠道单独控制横幅/声音，需要允许「Assistant alarms」渠道的弹出和铃声。
+5. **Windows 通知受系统设置影响**：需要在 Windows「设置 → 系统 → 通知」中允许 casual 通知；「勿扰模式/专注助手」开启时 Toast 会被抑制。
+6. **`custom` 重复类型未实现**：调度时直接返回 `null`（不调度），界面未提供该选项。
 
 ## 5. 设置管理
 

@@ -275,14 +275,20 @@ class ReminderService {
       return;
     }
 
+    final androidScheduleMode = await _resolveAndroidScheduleMode();
+
     const androidDetails = AndroidNotificationDetails(
-      'reminder_channel',
-      'Reminders',
-      channelDescription: 'Reminder notifications',
-      importance: Importance.high,
-      priority: Priority.high,
+      'assistant_alarm_channel',
+      'Assistant alarms',
+      channelDescription: 'Time-sensitive assistant reminders',
+      importance: Importance.max,
+      priority: Priority.max,
       playSound: true,
       enableVibration: true,
+      visibility: NotificationVisibility.public,
+      category: AndroidNotificationCategory.alarm,
+      audioAttributesUsage: AudioAttributesUsage.alarm,
+      ticker: 'casual 助手',
     );
 
     const iosDetails = DarwinNotificationDetails(
@@ -311,7 +317,7 @@ class ReminderService {
           details,
           uiLocalNotificationDateInterpretation:
               UILocalNotificationDateInterpretation.absoluteTime,
-          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          androidScheduleMode: androidScheduleMode,
         );
         break;
 
@@ -324,7 +330,7 @@ class ReminderService {
           details,
           uiLocalNotificationDateInterpretation:
               UILocalNotificationDateInterpretation.absoluteTime,
-          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          androidScheduleMode: androidScheduleMode,
           matchDateTimeComponents: DateTimeComponents.time,
         );
         break;
@@ -339,7 +345,7 @@ class ReminderService {
           details,
           uiLocalNotificationDateInterpretation:
               UILocalNotificationDateInterpretation.absoluteTime,
-          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          androidScheduleMode: androidScheduleMode,
           matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
         );
         break;
@@ -355,7 +361,7 @@ class ReminderService {
             details,
             uiLocalNotificationDateInterpretation:
                 UILocalNotificationDateInterpretation.absoluteTime,
-            androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+            androidScheduleMode: androidScheduleMode,
             matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
           );
         }
@@ -371,7 +377,7 @@ class ReminderService {
           details,
           uiLocalNotificationDateInterpretation:
               UILocalNotificationDateInterpretation.absoluteTime,
-          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          androidScheduleMode: androidScheduleMode,
           matchDateTimeComponents: DateTimeComponents.dayOfMonthAndTime,
         );
         break;
@@ -387,13 +393,45 @@ class ReminderService {
           reminder.title,
           Duration(minutes: minutes),
           details,
-          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          androidScheduleMode: androidScheduleMode,
         );
         break;
 
       case RepeatType.custom:
         break;
     }
+  }
+
+  Future<AndroidScheduleMode> _resolveAndroidScheduleMode() async {
+    if (!Platform.isAndroid) return AndroidScheduleMode.exactAllowWhileIdle;
+
+    final androidPlugin = _mobilePlugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    if (androidPlugin == null) {
+      return AndroidScheduleMode.inexactAllowWhileIdle;
+    }
+
+    try {
+      final canScheduleExact =
+          await androidPlugin.canScheduleExactNotifications();
+      if (canScheduleExact ?? true) {
+        return AndroidScheduleMode.exactAllowWhileIdle;
+      }
+
+      // Android 12+ 可能默认禁止精确闹钟；提醒保存时尝试引导授权，
+      // 用户未授权时降级为非精确调度，避免到点完全没有系统通知。
+      final granted = await androidPlugin.requestExactAlarmsPermission();
+      if (granted ?? false) {
+        return AndroidScheduleMode.exactAllowWhileIdle;
+      }
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint(
+            '[ReminderService] exact alarm permission check failed: $e\n$st');
+      }
+    }
+
+    return AndroidScheduleMode.inexactAllowWhileIdle;
   }
 
   DateTime? _computeNextFire(Reminder reminder, DateTime from) {
@@ -403,24 +441,24 @@ class ReminderService {
         return base.isAfter(from) ? base : null;
 
       case RepeatType.daily:
-        var next = DateTime(
-            from.year, from.month, from.day, base.hour, base.minute);
+        var next =
+            DateTime(from.year, from.month, from.day, base.hour, base.minute);
         if (!next.isAfter(from)) {
           next = next.add(const Duration(days: 1));
         }
         return next;
 
       case RepeatType.weekly:
-        var next = DateTime(
-            from.year, from.month, from.day, base.hour, base.minute);
+        var next =
+            DateTime(from.year, from.month, from.day, base.hour, base.minute);
         while (!next.isAfter(from) || next.weekday != base.weekday) {
           next = next.add(const Duration(days: 1));
         }
         return next;
 
       case RepeatType.weekdays:
-        var next = DateTime(
-            from.year, from.month, from.day, base.hour, base.minute);
+        var next =
+            DateTime(from.year, from.month, from.day, base.hour, base.minute);
         while (!next.isAfter(from) ||
             next.weekday == DateTime.saturday ||
             next.weekday == DateTime.sunday) {
@@ -431,8 +469,7 @@ class ReminderService {
       case RepeatType.monthly:
         var year = from.year;
         var month = from.month;
-        var next =
-            DateTime(year, month, base.day, base.hour, base.minute);
+        var next = DateTime(year, month, base.day, base.hour, base.minute);
         if (!next.isAfter(from)) {
           month += 1;
           if (month > 12) {
@@ -451,8 +488,7 @@ class ReminderService {
         // 取严格晚于 from 的最近一个，应用重启后仍延续原节奏而不会立即补发
         if (base.isAfter(from)) return base.add(interval);
         final k =
-            from.difference(base).inMicroseconds ~/ interval.inMicroseconds +
-                1;
+            from.difference(base).inMicroseconds ~/ interval.inMicroseconds + 1;
         return base.add(interval * k);
 
       case RepeatType.custom:

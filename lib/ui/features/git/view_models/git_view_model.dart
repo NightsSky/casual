@@ -2,8 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../data/repositories/git_config_repository.dart';
 import '../../../../data/repositories/git_sync_repository.dart';
+import '../../../../data/sync/sync_engine.dart';
+import '../../../../data/sync/sync_engine_provider.dart';
 import '../../../../domain/models/models.dart';
-import '../../notes/view_models/notes_view_model.dart';
 
 class GitState {
   final GitConfig config;
@@ -98,82 +99,44 @@ class GitNotifier extends StateNotifier<GitState> {
     }
   }
 
-  Future<List<Note>> pullNotes() async {
-    if (!state.config.isConfigured) return [];
+
+  /// 主同步入口（v2 引擎，doc/sync-design.md §8）。
+  ///
+  /// 一次调用 = 一个完整同步会话：判定拉/推/删除并各自执行，
+  /// 冲突收集到 [SyncReport.pendingConflicts] 返回，由 UI 调
+  /// [resolveConflicts] 落地裁决后再同步一次（推送「保留本地」的改动）。
+  Future<SyncReport> runSync() async {
+    if (!state.config.isConfigured) {
+      return SyncReport();
+    }
 
     state = state.copyWith(isSyncing: true, clearSyncError: true);
     try {
-      final notes = await _syncRepository.pullNotes(state.config);
+      final engine = _ref.read(syncEngineProvider);
+      final report = await engine.sync(state.config);
+
       final now = DateTime.now();
       final updatedConfig = state.config.copyWith(lastSyncTime: now);
       state = state.copyWith(config: updatedConfig, isSyncing: false);
       await _configRepository.saveConfig(updatedConfig);
-      return notes;
-    } catch (e) {
-      state = state.copyWith(syncError: e.toString(), isSyncing: false);
-      rethrow;
-    }
-  }
 
-  Future<Map<String, dynamic>?> pushNote(Note note) async {
-    if (!state.config.isConfigured) return null;
-
-    state = state.copyWith(isSyncing: true, clearSyncError: true);
-    try {
-      final result = await _syncRepository.pushNote(state.config, note);
-      final now = DateTime.now();
-      final updatedConfig = state.config.copyWith(lastSyncTime: now);
-      state = state.copyWith(config: updatedConfig, isSyncing: false);
-      await _configRepository.saveConfig(updatedConfig);
-      return result;
-    } catch (e) {
-      state = state.copyWith(syncError: e.toString(), isSyncing: false);
-      rethrow;
-    }
-  }
-
-  Future<void> deleteRemoteNote(String filePath, String? sha) async {
-    if (!state.config.isConfigured) return;
-
-    state = state.copyWith(isSyncing: true, clearSyncError: true);
-    try {
-      await _syncRepository.deleteRemoteNote(
-        state.config,
-        filePath: filePath,
-        sha: sha,
+      addSyncLog(
+        report.failures.isEmpty ? SyncLogType.success : SyncLogType.warning,
+        report.summary(),
       );
-      state = state.copyWith(isSyncing: false);
+      return report;
     } catch (e) {
       state = state.copyWith(syncError: e.toString(), isSyncing: false);
+      addSyncLog(SyncLogType.error, e.toString());
       rethrow;
     }
   }
 
-  Future<List<Note>> fullSync() async {
-    if (!state.config.isConfigured) return [];
-
-    final notesNotifier = _ref.read(notesProvider.notifier);
-    final unsyncedNotes = _ref
-        .read(notesProvider)
-        .notes
-        .where((n) => n.syncStatus == SyncStatus.local)
-        .toList();
-
-    // 主同步入口先把本地未同步编辑写入远程，成功后记录远程路径和 sha，
-    // 避免随后拉取远程列表时又用旧内容覆盖本地修改。
-    for (final note in unsyncedNotes) {
-      final result = await pushNote(note);
-      if (result != null) {
-        notesNotifier.markSynced(
-          note.id,
-          result['filePath'] as String,
-          sha: result['sha'] as String?,
-        );
-      }
-    }
-
-    // 本地推送完成后再读取远程最新版本，供页面导入远程新增或其他设备更新的笔记。
-    return pullNotes();
+  /// 落地用户对冲突的裁决（doc/sync-design.md §7.2）。
+  /// 纯本地操作不触网，调用后应再同步一次把「保留本地」的推上去。
+  Future<void> resolveConflicts(List<ConflictResolution> resolutions) async {
+    final engine = _ref.read(syncEngineProvider);
+    await engine.resolveConflicts(resolutions);
   }
 
   Future<void> clearAll() => _configRepository.clearAll();

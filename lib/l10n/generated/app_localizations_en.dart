@@ -200,6 +200,28 @@ class AppLocalizationsEn extends AppLocalizations {
   String get conflicts => 'Conflicts';
 
   @override
+  String get syncConflictTitle => 'Sync Conflict';
+
+  @override
+  String get syncConflictLocalTime => 'Local version';
+
+  @override
+  String get syncConflictRemoteTime => 'Remote version';
+
+  @override
+  String get syncConflictTimeUnknown => 'Unknown';
+
+  @override
+  String get syncConflictDescription =>
+      'Both local and remote versions have been modified. Please choose which version to keep.';
+
+  @override
+  String get syncConflictKeepLocal => 'Keep Local';
+
+  @override
+  String get syncConflictTakeRemote => 'Use Remote';
+
+  @override
   String get noSyncLogs => 'No sync logs yet';
 
   @override
@@ -500,6 +522,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get reminderSaved => 'Assistant saved';
+
+  @override
+  String reminderSaveFailed(String error) {
+    return 'Failed to save assistant: $error';
+  }
 
   @override
   String get enterReminderTitle => 'Enter a title...';

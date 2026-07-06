@@ -74,108 +74,70 @@ NotesViewModel.deleteNote()
 
 ## Git 同步数据流
 
-### 主界面/全量同步（Push local then Pull）
+> 自 v2 起，同步不再区分「推送 / 拉取 / 全量」三个动作，统一为**一次双向同步会话**（`SyncEngine`）。完整设计见 [同步策略设计](./sync-design.md)；本节描述数据在会话中的流向。
+
+### 双向同步会话（v2 引擎）
+
+任意入口（笔记列表同步按钮、仓库页同步、编辑页保存后同步）都调用 `GitNotifier.runSync()`，进而驱动一次 `SyncEngine.sync()` 会话。引擎不理解 UI，只经 `SyncNotesPort` 读写内存状态权威（`NotesNotifier`），再由其持久化——引擎**不直写存储**（多窗口不变量）。
 
 ```
-用户点击同步按钮
+用户触发同步（列表 / 仓库页 / 编辑页）
     ↓
-检查 Git 配置是否完整
+GitNotifier.runSync()（置 isSyncing，写同步日志）
     ↓
-显示加载进度弹窗
-    ↓
-GitViewModel.fullSync()
-    ├─> 读取 syncStatus=local 的本地笔记快照
-    ├─> 逐条调用 GitHubService/GiteeService.getFileSha() 查询远程 sha
-    ├─> sha 无冲突后调用 GitHubService/GiteeService.createOrUpdateFile()
-    ├─> 推送成功后 NotesViewModel.markSynced() 写回 filePath/sha/synced
-    ├─> 本地推送全部完成后调用 GitHubService/GiteeService.listFiles()
-    ├─> 下载远程最新文件内容
-    └─> 返回远程最新笔记列表
+SyncEngine.sync(config)
+    ├─ ① fetchHead()            远端分支 head commit（空仓库为 null）
+    ├─ ② listTree(head)         一次拿全仓库 path→blobSha 清单，按 notesDir/.md/.txt 过滤
+    │                           （清单被截断则抛异常中止，不误判删除）
+    ├─ 合成 base（v1 迁移吸收）  老数据有 filePath 无 base → 以远端当前版本合成共识 base
+    ├─ ③ 判定（sync_planner）    对「本地 ∪ base ∪ 远端清单」每个身份键套用判定表：
+    │       ├─ 只有本地变 → 推送
+    │       ├─ 只有远端变 → 拉取覆盖
+    │       ├─ 双端都变 → 冲突（规则 4）
+    │       │       └─ 收集到 SyncReport.pendingConflicts，UI 二选一裁决（§7）
+    │       ├─ base 有本地无 → 传播删除到远端
+    │       └─ base 有远端无 → 传播删除到本地
+    ├─ ④ 按需下载变更文件的 blob（sha 与 base 相同者不下载）
+    ├─ ⑤ 本地落盘：applyRemoteUpsert / applyRemoteDelete / rewriteNoteId
+    ├─ ⑥ 远端提交：GitHub 走 Git Data API 单提交原子写入；Gitee 逐文件 contents API
+    ├─ ⑦ head 移动（updateRef 非 fast-forward）→ 回到 ① 重试（≤3 次，仓库级乐观锁）
+    └─ ⑧ 更新 base 表（本次共识版本）
             ↓
-遍历每条远程笔记
+返回 SyncReport（pushed/pulled/conflicts/deleted/restored/failures）
     ↓
-NotesViewModel.importNote()
-    ├─> 比对本地是否存在（基于 filePath）
-    ├─> 如果本地不存在：直接导入
-    ├─> 如果本地存在：
-    │       ├─> 本地仍为 local 且远程内容不同：标记为冲突（conflict），保留本地内容
-    │       └─> 本地已同步或远程版本更新：写入远程最新内容和 sha
-    └─> 保存到本地存储
-            ↓
-关闭进度弹窗
+UI 若有冲突：逐篇弹二选一对话框，收集裁决后调 engine.resolveConflicts()，再同步一次
     ↓
-显示同步成功提示
+GitNotifier 写同步日志（report.summary()）、更新 lastSyncTime
+    ↓
+UI 关闭进度弹窗，SnackBar 显示同步完成
 ```
 
 **代码位置**：
-- UI 触发：`lib/pages/notes_page.dart:368-422` (`_handleSync`)
-- 同步顺序：`lib/ui/features/git/view_models/git_view_model.dart:152-176` (`fullSync`)
-- 远程导入：`lib/ui/features/notes/view_models/notes_view_model.dart:269-350` (`importNote`)
-- API 调用：`lib/data/repositories/git_sync_repository.dart:111-169` (`pushNote`), `lib/data/services/github_service.dart:26-61` (`listFiles`), `lib/data/services/github_service.dart:63-88` (`getFileContent`)
+- 引擎主入口：`lib/data/sync/sync_engine.dart` (`SyncEngine.sync` / `_attempt` / `resolveConflicts`)
+- 判定表：`lib/data/sync/sync_planner.dart` (`planSync`)
+- 远端抽象：`lib/data/sync/remote/`（`github_remote.dart` 原子提交 / `gitee_remote.dart` 逐文件）
+- base 表持久化：`lib/data/sync/sync_base_store.dart`（key `gitnote_sync_base`）
+- 状态回写口：`lib/ui/features/notes/view_models/notes_view_model.dart`（`applyRemoteUpsert` / `applyRemoteDelete` / `rewriteNoteId` / `markPushed`）
+- ViewModel 入口：`lib/ui/features/git/view_models/git_view_model.dart` (`runSync` / `resolveConflicts`)
+- 冲突对话框：`lib/ui/widgets/conflict_resolution_dialog.dart`
+- UI 触发：`lib/pages/notes_page.dart` (`_handleSync` / `_handleConflicts`)、`lib/pages/repo_page.dart` (`_sync` / `_handleConflicts`)、`lib/pages/editor_page.dart` (`_syncNote`)
 
-### 单条推送（Push）
+### 删除（本地墓碑，会话传播）
+
+v2 删除不再即时删远端。删除只移除本地笔记，**base 表保留该条目作为墓碑**，下次同步会话由引擎按判定表传播：
 
 ```
-用户在编辑页选择"同步到远程"
+用户删除笔记 → NotesViewModel.deleteNote(id)（仅删本地内存 + 持久化）
     ↓
-EditorPage._saveNote() 保存最新内容
-    ↓
-显示加载进度弹窗
-    ↓
-GitViewModel.pushNote(note)
-    ├─> 如果笔记已有 filePath：
-    │       ├─> 调用 GitHubService.getFileSha() 查询远程 SHA
-    │       ├─> 如果远程存在且 SHA 不同：抛出冲突异常
-    │       └─> 调用 GitHubService.createOrUpdateFile() 更新
-    └─> 如果笔记无 filePath（首次推送）：
-            ├─> 生成文件路径（notes/{category}/{uuid}.md）
-            └─> 调用 GitHubService.createOrUpdateFile() 创建
-                    ↓
-返回 {filePath, sha}
-    ↓
-NotesViewModel.markSynced(noteId, filePath, sha)
-    ├─> 更新笔记的 filePath 和 sha 字段
-    ├─> 同步状态改为 synced
-    └─> 保存到本地存储
-            ↓
-关闭进度弹窗
-    ↓
-显示同步成功提示
+下次同步会话，引擎发现「base 有该键、本地快照没有」
+    ├─ 远端相对 base 未变 → 推送删除到远端，清 base（规则 5）
+    └─ 远端相对 base 已变（改删冲突）→ 远端新版拉回本地并计入 restored，
+                                       用户可再删（删除让位于修改，不静默丢另一端修改，规则 8）
 ```
 
 **代码位置**：
-- UI 触发：`lib/pages/editor_page.dart:458-473` (菜单选择 'sync')
-- 同步逻辑：`lib/pages/editor_page.dart:475-536` (`_syncNote`)
-- API 调用：`lib/data/services/github_service.dart:90-122` (`createOrUpdateFile`)
-- 标记已同步：通过 `notesProvider.notifier.markSynced`
-
-### 远程删除
-
-```
-用户删除笔记
-    ↓
-显示确认对话框
-    ↓
-用户确认
-    ↓
-NotesViewModel.deleteNoteWithRemote(noteId, deleteRemote)
-    ├─> 调用 deleteRemote 回调函数
-    │       ↓
-    │   GitViewModel.deleteRemoteNote(filePath, sha)
-    │       ↓
-    │   GitHubService.deleteFile()
-    │       ↓
-    └─> 远程删除成功后
-            ↓
-NotesViewModel.deleteNote(noteId)
-    ↓
-从本地移除
-```
-
-**代码位置**：
-- 删除逻辑：`lib/pages/notes_page.dart:264-291` (`_deleteNote`)
-- ViewModel：`lib/providers/notes_provider.dart` (`deleteNoteWithRemote`)
-- API 调用：`lib/data/services/github_service.dart:145-168` (`deleteFile`)
+- 删除逻辑：`lib/pages/notes_page.dart` (`_deleteNote`)、`lib/pages/editor_page.dart` (`_deleteNote`)，均为纯本地 `deleteNote`
+- 传播判定：`lib/data/sync/sync_planner.dart`（规则 5/6/7/8）
 
 ## 提醒数据流
 
@@ -184,10 +146,11 @@ NotesViewModel.deleteNote(noteId)
 ```
 用户在提醒页点击 + / 点击提醒卡片
     ↓
-_ReminderDialog 填写标题、时间、重复方式
+_ReminderDialog 填写标题、时间、重复方式（新建单次提醒默认下一分钟）
 （重复方式选「按间隔」时改为选择小时/分钟间隔，不再选择时刻）
     ↓
-单次提醒若所选时分已过：自动顺延到明天同一时间；
+单次提醒若选择当前分钟：调度到当前时间后 10 秒；
+单次提醒若所选时分早于当前分钟：自动顺延到明天同一时间；
 间隔提醒：计时锚点（time 字段）重置为当前时刻，下次触发 = 现在 + 间隔
 （Reminder.rescheduledIfExpired()，重新启用开关时同样处理）
     ↓
@@ -201,13 +164,14 @@ ReminderService.scheduleReminder() 注册调度
     ├─> Windows：计算下次触发时间 → 存入内存表 → 启动 5 秒轮询 Timer
     │   （interval 型触发点 = 锚点 + N × 间隔，取未来最近一个）
     └─> Android/iOS/Linux：
+        ├─> Android：检查精确闹钟能力；未授权时降级为非精确 idle 调度
         ├─> 时刻型：flutter_local_notifications.zonedSchedule() 注册系统调度
         └─> interval 型：periodicallyShowWithDuration() 注册系统周期通知
 ```
 
 **代码位置**：
 - UI 触发：`lib/pages/reminder_page.dart:427` (`_saveReminder`)、间隔选择器 `lib/pages/reminder_page.dart:355` (`_buildIntervalPicker`)
-- 过期顺延/锚点重置：`lib/domain/models/reminder.dart:63-75` (`rescheduledIfExpired`)
+- 过期顺延/锚点重置：`lib/domain/models/reminder.dart:63-85` (`rescheduledIfExpired`)
 - 状态管理：`lib/providers/reminder_provider.dart:70-112` (`addReminder`, `updateReminder`, `toggleReminder`)
 - 持久化：`lib/services/reminder_service.dart:102-105` (`saveReminders`)
 - 调度分发：`lib/services/reminder_service.dart:107-121` (`scheduleReminder`)
@@ -222,7 +186,7 @@ _onTick()：遍历内存表中各提醒的下次触发时间
 到期（距现在 ≤ 5 秒）
     ├─> 从存储重读提醒，校验仍存在且启用
     ├─> 去重检查（同一触发点只发一次）
-    ├─> local_notifier 弹出系统 Toast（「GitNote 助手」+ 提醒标题）
+    ├─> local_notifier 弹出系统 Toast（「casual 助手」+ 提醒标题）
     └─> 计算下一次触发时间
             ├─> 有下次（重复提醒）：更新内存表
             └─> 无下次（单次提醒）：从内存表移除，表空则停止 Timer
@@ -246,7 +210,9 @@ loadReminders()：从 shared_preferences 读取提醒列表
 遍历启用的提醒逐个 scheduleReminder()
     ↓
 注意：历史数据中已过期的单次提醒不会补发（静默跳过）；
-在界面上重新保存或开关一次会自动顺延到未来
+在界面上重新保存或开关一次会自动顺延到未来；
+Android 端还依赖 Manifest 中的 ScheduledNotificationBootReceiver，
+用于设备重启或应用更新后由插件恢复已注册的系统提醒
 ```
 
 **代码位置**：
@@ -346,6 +312,24 @@ NoteWindowService._reconcile()
 ]
 ```
 
+### 同步 base 快照存储（v2）
+
+**Key**: `gitnote_sync_base`
+**格式**:
+```json
+[
+  {
+    "key": "笔记身份键（md=front-matter id；txt=远端路径）",
+    "path": "上次共识时的远端路径",
+    "blobSha": "共识版本的 git blob sha",
+    "content": "共识版本全文（三方合并的 base 输入）",
+    "syncedAt": "ISO8601 时间（UTC）"
+  }
+]
+```
+
+> base 表记录「每篇笔记上次同步成功时双方共识的版本」，是判定拉/推/合并与识别删除的依据（见 [同步策略设计](./sync-design.md) §9.1）。与笔记表分开存储：清空 base 等价于「忘记同步历史」，下轮同步按迁移路径重新对齐，不影响笔记数据本身。base 表损坏时按空表处理（引擎走「合成 base」重新对齐），不丢笔记。
+
 ### Git 配置存储
 
 **Key**: `git_config`
@@ -387,20 +371,29 @@ NoteWindowService._reconcile()
 - Git 配置存储：`lib/data/repositories/git_config_repository.dart`
 - 提醒存储：`lib/services/reminder_service.dart:88-105`（`loadReminders`, `saveReminders`）、模型序列化 `lib/domain/models/reminder.dart:77-104`
 
-## 冲突处理
+## 冲突处理（v2）
 
-当本地笔记与远程笔记的 SHA 值不一致时，标记为冲突状态：
+同步引擎对每篇笔记按「base 快照 / 本地相对 base / 远端相对 base」三方判定（判定表见 [同步策略设计 §6.2](./sync-design.md)）。当本地与远端都相对 base 发生改动（分叉，判定表规则 4）时进入冲突处理。
 
-1. **全量同步时**：远程 SHA ≠ 本地 SHA → 标记为 `conflict`
-2. **单条推送时**：远程 SHA ≠ 本地 SHA → 抛出异常，推送失败
+> ⚠️ **冲突策略正在切换（2026-07-06 定稿，代码待跟进）**：设计已将冲突处理从「diff3 自动合并 + 冲突副本」简化为**用户二选一**——弹窗展示本地与远端最后更新时间，用户选「保留本地」或「用远程覆盖」，取消则跳过该篇（详见 [同步策略设计 §7](./sync-design.md)）。下方描述的是**当前 M3 代码的实际行为**（diff3 + 冲突副本），将在 M4 落地二选一时替换。
 
-**未来改进方向**：
-- 提供冲突解决界面（选择保留本地/远程/合并）
-- 支持三方合并算法
-- 显示差异对比
+**当前 M3 代码行为**：
+
+1. **diff3 行级自动合并**（`lib/data/sync/diff3.dart`）：以 base 为共同祖先合并双方改动。改动不重叠 → 干净合并，合并结果同时落盘并推送远端，无需用户介入。
+2. **冲突副本**（`SyncEngine._applyMerge` 合并失败分支）：改动重叠无法自动合并时，正身采纳远端版本，本地版另存为一篇新笔记（新 id、追加 `conflict` 标签、标题带「（冲突 时间 @设备）」），置为 `local` 状态，下一轮会话自动推送到远端。
+
+**M4 目标行为**（二选一）：分叉时不自动合并、不生成副本，逐篇弹窗展示双方最后更新时间，用户裁决保留本地或用远程覆盖；取消则保持本地不动、跳过该篇，下次同步再次提示。
+
+> 关键原则（两种策略共通）：v2 **绝不静默覆盖**用户数据。删除让位于修改（判定表规则 7/8）——本地删 + 远端改会把远端版恢复到本地并提示，不自动重删。
+
+**代码位置**：
+- 三方判定：`lib/data/sync/sync_planner.dart`（`planSync`）
+- 冲突处理（§7 二选一）：`lib/data/sync/sync_engine.dart`（`resolveConflicts`）、`lib/ui/widgets/conflict_resolution_dialog.dart`
+- 冲突标签常量：`lib/data/sync/sync_engine.dart`（`kConflictTag`，保留用于向前兼容）
 
 ## 相关文档
 
 - [架构设计](./architecture.md) - 整体架构说明
 - [核心功能](./features.md) - 功能详细说明
 - [API 文档](./api.md) - Git 平台 API 调用说明
+- [同步策略设计 v2](./sync-design.md) - 同步机制完整设计

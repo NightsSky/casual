@@ -199,7 +199,15 @@ class _ReminderDialogState extends ConsumerState<_ReminderDialog> {
     super.initState();
     _titleController =
         TextEditingController(text: widget.reminder?.title ?? '');
-    _selectedTime = widget.reminder?.time ?? DateTime.now();
+    final now = DateTime.now();
+    final defaultTime = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      now.hour,
+      now.minute,
+    ).add(const Duration(minutes: 1));
+    _selectedTime = widget.reminder?.time ?? defaultTime;
     _selectedRepeat = widget.reminder?.repeat ?? RepeatType.none;
     final interval = widget.reminder?.intervalMinutes ?? 60;
     _intervalHours = interval ~/ 60;
@@ -620,7 +628,7 @@ class _ReminderDialogState extends ConsumerState<_ReminderDialog> {
     }
   }
 
-  void _saveReminder() {
+  Future<void> _saveReminder() async {
     final title = _titleController.text.trim();
     if (title.isEmpty) {
       return;
@@ -649,16 +657,26 @@ class _ReminderDialogState extends ConsumerState<_ReminderDialog> {
             ))
         .rescheduledIfExpired();
 
-    if (widget.reminder == null) {
-      ref.read(reminderProvider.notifier).addReminder(reminder);
-    } else {
-      ref.read(reminderProvider.notifier).updateReminder(reminder);
-    }
+    try {
+      // 保存提示必须等本地持久化和系统通知调度完成后再展示，
+      // 否则 Android 权限或系统调度异常会被“已保存”提示掩盖。
+      if (widget.reminder == null) {
+        await ref.read(reminderProvider.notifier).addReminder(reminder);
+      } else {
+        await ref.read(reminderProvider.notifier).updateReminder(reminder);
+      }
 
-    Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(context.l10n.reminderSaved)),
-    );
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.reminderSaved)),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.reminderSaveFailed(e.toString()))),
+      );
+    }
   }
 
   Future<void> _deleteReminder() async {

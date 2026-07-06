@@ -187,24 +187,6 @@ class NotesNotifier extends StateNotifier<NotesState> {
     _saveToCache();
   }
 
-  /// 删除笔记，并在已同步（有 filePath）时先删除远程文件，避免下次同步又被拉回来。
-  /// [deleteRemote] 由上层注入（git 层），返回后再移除本地。远程删除失败会抛出异常，
-  /// 此时本地保留，交由调用方提示用户。
-  Future<void> deleteNoteWithRemote(
-    String id, {
-    required Future<void> Function(String filePath, String? sha) deleteRemote,
-  }) async {
-    final index = state.notes.indexWhere((n) => n.id == id);
-    if (index == -1) return;
-
-    final note = state.notes[index];
-    final filePath = note.filePath;
-    if (filePath != null && filePath.isNotEmpty) {
-      await deleteRemote(filePath, note.sha);
-    }
-    deleteNote(id);
-  }
-
   void deleteNotes(Set<String> ids) {
     final newNotes = state.notes.where((n) => !ids.contains(n.id)).toList();
     var newCurrentId = state.currentNoteId;
@@ -215,156 +197,8 @@ class NotesNotifier extends StateNotifier<NotesState> {
     _saveToCache();
   }
 
-  /// 批量删除，逐条尝试删除远程；远程删除失败的笔记会保留在本地并收集到返回列表中。
-  /// 返回删除失败（远程报错）的笔记标题，供调用方提示。
-  Future<List<String>> deleteNotesWithRemote(
-    Set<String> ids, {
-    required Future<void> Function(String filePath, String? sha) deleteRemote,
-  }) async {
-    final failed = <String>[];
-    for (final id in ids) {
-      final note = state.notes.cast<Note?>().firstWhere(
-            (n) => n?.id == id,
-            orElse: () => null,
-          );
-      if (note == null) continue;
-      try {
-        await deleteNoteWithRemote(id, deleteRemote: deleteRemote);
-      } catch (_) {
-        failed.add(note.title);
-      }
-    }
-    return failed;
-  }
-
   void setCurrentNote(String id) {
     state = state.copyWith(currentNoteId: id);
-  }
-
-  void markSynced(String id, String filePath, {String? sha}) {
-    final index = state.notes.indexWhere((n) => n.id == id);
-    if (index == -1) return;
-
-    final newNotes = List<Note>.from(state.notes);
-    newNotes[index] = newNotes[index].copyWith(
-      syncStatus: SyncStatus.synced,
-      syncedAt: DateTime.now(),
-      filePath: filePath,
-      sha: sha ?? newNotes[index].sha,
-    );
-    state = state.copyWith(notes: newNotes);
-    _saveToCache();
-  }
-
-  void markConflict(String id) {
-    final index = state.notes.indexWhere((n) => n.id == id);
-    if (index == -1) return;
-
-    final newNotes = List<Note>.from(state.notes);
-    newNotes[index] = newNotes[index].copyWith(syncStatus: SyncStatus.conflict);
-    state = state.copyWith(notes: newNotes);
-    _saveToCache();
-  }
-
-  Note importNote(Note noteData) {
-    // 优先按 filePath 查找，次选按 title+content 去重。
-    var existing = state.notes.indexWhere((n) =>
-        n.filePath != null &&
-        n.filePath!.isNotEmpty &&
-        n.filePath == noteData.filePath);
-
-    // 若 filePath 不匹配，尝试内容去重（标题+内容一致视为同一笔记）。
-    if (existing == -1) {
-      existing = state.notes.indexWhere((n) =>
-          n.title == noteData.title &&
-          n.content.trim() == noteData.content.trim());
-    }
-
-    if (existing != -1) {
-      final localNote = state.notes[existing];
-      final remoteChanged = localNote.title != noteData.title ||
-          localNote.content.trim() != noteData.content.trim();
-
-      // 本地仍有未同步编辑时，远程内容只要不一致就进入冲突态，
-      // 避免 Git 平台未返回可靠更新时间时误把本地刚写的内容覆盖掉。
-      if (localNote.syncStatus == SyncStatus.local && remoteChanged) {
-        final index = state.notes.indexWhere((n) => n.id == localNote.id);
-        if (index != -1) {
-          final newNotes = List<Note>.from(state.notes);
-          newNotes[index] = newNotes[index].copyWith(
-            syncStatus: SyncStatus.conflict,
-            // 保留 sha/filePath，方便后续手动解决冲突后推送。
-            sha: noteData.sha,
-            filePath: noteData.filePath,
-          );
-          state = state.copyWith(notes: newNotes);
-          _saveToCache();
-          return newNotes[index];
-        }
-      }
-
-      // 远程时间更新 → 覆盖本地；本地更新 → 标记冲突。
-      final localNewer = localNote.updatedAt.isAfter(noteData.updatedAt);
-
-      if (localNewer && localNote.syncStatus == SyncStatus.local) {
-        // 本地未同步版本更新，标记冲突。
-        final index = state.notes.indexWhere((n) => n.id == localNote.id);
-        if (index != -1) {
-          final newNotes = List<Note>.from(state.notes);
-          newNotes[index] = newNotes[index].copyWith(
-            syncStatus: SyncStatus.conflict,
-            // 保留 sha/filePath，方便后续手动解决冲突后推送。
-            sha: noteData.sha,
-            filePath: noteData.filePath,
-          );
-          state = state.copyWith(notes: newNotes);
-          _saveToCache();
-          return newNotes[index];
-        }
-      }
-
-      // 远程更新或本地已同步 → 覆盖。
-      final updated = updateNote(
-        localNote.id,
-        title: noteData.title,
-        content: noteData.content,
-        tags: noteData.tags,
-      );
-      if (updated == null) return noteData;
-
-      // updateNote 会把状态标记为 local，这里回写远程同步信息（sha/filePath/synced）。
-      final index = state.notes.indexWhere((n) => n.id == updated.id);
-      if (index == -1) return updated;
-      final newNotes = List<Note>.from(state.notes);
-      newNotes[index] = newNotes[index].copyWith(
-        sha: noteData.sha,
-        filePath: noteData.filePath,
-        syncStatus: SyncStatus.synced,
-        syncedAt: DateTime.now(),
-      );
-      state = state.copyWith(notes: newNotes);
-      _saveToCache();
-      return newNotes[index];
-    }
-
-    // 新笔记。
-    final note = Note(
-      id: generateId(),
-      title: noteData.title,
-      content: noteData.content,
-      tags: noteData.tags,
-      category: noteData.category,
-      format: noteData.format,
-      createdAt: noteData.createdAt,
-      updatedAt: noteData.updatedAt,
-      syncedAt: DateTime.now(),
-      syncStatus: SyncStatus.synced,
-      filePath: noteData.filePath,
-      sha: noteData.sha,
-    );
-    state = state.copyWith(notes: [note, ...state.notes]);
-    _saveToCache();
-    return note;
   }
 
   void setSortBy(String sortBy) {
@@ -375,6 +209,55 @@ class NotesNotifier extends StateNotifier<NotesState> {
     state = tag == null
         ? state.copyWith(clearFilterTag: true)
         : state.copyWith(filterTag: tag);
+  }
+
+  // ——— 同步引擎回写口（SyncNotesPort 适配所需的原子操作，doc/sync-design.md §8）———
+  // 所有远端权威变更都经此流入内存状态并持久化，引擎不直写存储（多窗口不变量）。
+
+  /// 当前全部笔记快照（引擎读取口，避免外部触碰 protected 的 state）。
+  List<Note> snapshot() => state.notes;
+
+  /// 按 id 覆盖或新增（远端权威内容落盘，[note] 已由引擎置好 synced 态）。
+  void applyRemoteUpsert(Note note) {
+    final index = state.notes.indexWhere((n) => n.id == note.id);
+    final newNotes = List<Note>.from(state.notes);
+    if (index == -1) {
+      newNotes.insert(0, note);
+    } else {
+      newNotes[index] = note;
+    }
+    state = state.copyWith(notes: newNotes);
+    _saveToCache();
+  }
+
+  /// 远端删除传播到本地。
+  void applyRemoteDelete(String noteId) => deleteNote(noteId);
+
+  /// 迁移对齐：以远端 id 改写本地笔记 id（§12 先迁移者胜）。
+  void rewriteNoteId(String oldId, String newId) {
+    final index = state.notes.indexWhere((n) => n.id == oldId);
+    if (index == -1) return;
+    final newNotes = List<Note>.from(state.notes);
+    newNotes[index] = newNotes[index].copyWith(id: newId);
+    state = state.copyWith(
+      notes: newNotes,
+      currentNoteId: state.currentNoteId == oldId ? newId : state.currentNoteId,
+    );
+    _saveToCache();
+  }
+
+  /// 推送成功回写：filePath + synced（blobSha 由 base 表持有，不再依赖 note.sha）。
+  void markPushed(String noteId, String filePath) {
+    final index = state.notes.indexWhere((n) => n.id == noteId);
+    if (index == -1) return;
+    final newNotes = List<Note>.from(state.notes);
+    newNotes[index] = newNotes[index].copyWith(
+      syncStatus: SyncStatus.synced,
+      syncedAt: DateTime.now(),
+      filePath: filePath,
+    );
+    state = state.copyWith(notes: newNotes);
+    _saveToCache();
   }
 
   void _saveToCache() {

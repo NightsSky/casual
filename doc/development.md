@@ -199,17 +199,22 @@ flutter pub run build_runner build --delete-conflicting-outputs
 2. 检查网络：使用浏览器访问 `https://api.github.com/user`
 3. 查看控制台日志获取详细错误信息
 
-### 5. 定时提醒不触发（Windows）
+### 5. 定时提醒不触发
 
 **排查步骤**（按顺序检查）:
 
-1. **应用是否在运行**：Windows 端提醒依赖应用内 Timer（5 秒轮询），应用完全退出后不会触发。最小化到任务栏或最小化到系统托盘均不影响。
+1. **应用是否在运行**：Windows 端提醒依赖应用内 Timer（5 秒轮询），应用完全退出后不会触发。Android/iOS/Linux 端使用系统通知调度，应用退到后台仍可触发，但被用户强杀或被部分 ROM 后台管控时可能被系统拦截。
 2. **提醒是否处于启用状态**：提醒页中对应条目的开关需为打开状态。
-3. **是否为历史遗留的过期单次提醒**：现版本保存/重新启用单次提醒时会自动顺延到未来（`Reminder.rescheduledIfExpired()`）；但修复前创建、一直未操作过的过期单次提醒不会触发，重新保存或开关一次即可。
-4. **Windows 系统通知设置**：
-   - 「设置 → 系统 → 通知」中总开关和 GitNote 的通知开关需打开
+3. **是否为历史遗留的过期单次提醒**：现版本新建单次提醒默认下一分钟；选择当前分钟会调度到当前时间后 10 秒；更早时间会自动顺延到明天同一时间（`Reminder.rescheduledIfExpired()`）。修复前创建、一直未操作过的过期单次提醒不会补发，重新保存或开关一次即可。
+4. **Android 系统权限**：
+   - Android 13+ 需要在系统弹窗或「设置 → 通知」中允许 casual 发送通知
+   - Android 通知渠道使用「Assistant alarms」，需要在系统通知设置里允许该渠道的横幅/声音/锁屏提醒
+   - Android 12+ 若拒绝精确闹钟权限，应用会降级为非精确调度，提醒可能延迟但不应完全丢失
+   - 部分国产 ROM 需要额外允许后台运行/自启动/电池无限制，否则系统可能拦截后台提醒
+5. **Windows 系统通知设置**：
+   - 「设置 → 系统 → 通知」中总开关和 casual 的通知开关需打开
    - 「勿扰模式/专注助手」开启时 Toast 会被抑制
-5. **查看调试日志**：debug 模式下 `ReminderService` 会输出关键日志，过滤 `[ReminderService]` 前缀可看到 Timer 启动、触发、通知弹出/异常：
+6. **查看调试日志**：debug 模式下 `ReminderService` 会输出关键日志，过滤 `[ReminderService]` 前缀可看到 Timer 启动、触发、通知弹出/异常：
    ```
    [ReminderService] tick timer started
    [ReminderService] firing reminder "标题" (id=xxx) at ...

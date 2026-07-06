@@ -199,6 +199,27 @@ class AppLocalizationsZh extends AppLocalizations {
   String get conflicts => '冲突';
 
   @override
+  String get syncConflictTitle => '同步冲突';
+
+  @override
+  String get syncConflictLocalTime => '本地版本';
+
+  @override
+  String get syncConflictRemoteTime => '远程版本';
+
+  @override
+  String get syncConflictTimeUnknown => '时间未知';
+
+  @override
+  String get syncConflictDescription => '本地与远程都修改了这篇笔记，请选择保留哪个版本。';
+
+  @override
+  String get syncConflictKeepLocal => '保留本地';
+
+  @override
+  String get syncConflictTakeRemote => '用远程覆盖';
+
+  @override
   String get noSyncLogs => '暂无同步记录';
 
   @override
@@ -489,6 +510,11 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get reminderSaved => '助手已保存';
+
+  @override
+  String reminderSaveFailed(String error) {
+    return '助手保存失败：$error';
+  }
 
   @override
   String get enterReminderTitle => '输入标题...';

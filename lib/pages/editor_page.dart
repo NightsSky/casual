@@ -960,8 +960,9 @@ class _EditorPageState extends ConsumerState<EditorPage> {
       );
 
       _saveNote();
-      final result =
-          await gitNotifier.pushNote(ref.read(notesProvider).currentNote!);
+      // v2 同步无单条推送语义：整仓库一次原子会话，先落盘本地编辑再触发同步，
+      // 引擎会把本笔记连同其他待同步变更一并处理（含冲突副本、删除传播）。
+      final report = await gitNotifier.runSync();
 
       if (!mounted) return;
       // 单条笔记同步弹窗挂在根导航器上，关闭时只弹出进度弹窗，避免误关闭当前编辑页路由。
@@ -969,18 +970,11 @@ class _EditorPageState extends ConsumerState<EditorPage> {
         rootNavigator.pop();
       }
 
-      if (result != null) {
-        ref.read(notesProvider.notifier).markSynced(
-              note.id,
-              result['filePath'] as String,
-              sha: result['sha'] as String?,
-            );
-        messenger.showSnackBar(
-          SnackBar(
-              content: Text(l10n.syncSuccess),
-              backgroundColor: AppColors.success),
-        );
-      }
+      messenger.showSnackBar(
+        SnackBar(
+            content: Text(report.summary()),
+            backgroundColor: AppColors.success),
+      );
     } catch (e) {
       if (!mounted) return;
       // 同步失败时仍保留编辑页，用户可以查看失败提示后继续修改或重试。
@@ -1052,32 +1046,11 @@ class _EditorPageState extends ConsumerState<EditorPage> {
 
   Future<void> _deleteNote(String id) async {
     final notesNotifier = ref.read(notesProvider.notifier);
-    final gitNotifier = ref.read(gitProvider.notifier);
-    final l10n = context.l10n;
-    final messenger = ScaffoldMessenger.of(context);
-    final configured = ref.read(gitProvider).config.isConfigured;
-
-    try {
-      // 已配置 Git 时先删远程，避免删除后下次同步又被拉回来；未配置则仅删本地。
-      await notesNotifier.deleteNoteWithRemote(
-        id,
-        deleteRemote: (filePath, sha) async {
-          if (!configured) return;
-          await gitNotifier.deleteRemoteNote(filePath, sha);
-        },
-      );
-      if (!mounted) return;
-      widget.onBack?.call();
-    } catch (e) {
-      if (!mounted) return;
-      // 远程删除失败，本地保留笔记，提示用户重试。
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(l10n.deleteFailedMessage(e.toString())),
-          backgroundColor: AppColors.error,
-        ),
-      );
-    }
+    // v2 同步：删除只删本地，base 表保留作为墓碑，下次同步由引擎按规则 5/8
+    // 传播到远端（本地删+远端改时会保守恢复，不静默丢另一端修改）。
+    notesNotifier.deleteNote(id);
+    if (!mounted) return;
+    widget.onBack?.call();
   }
 }
 

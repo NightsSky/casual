@@ -1,4 +1,4 @@
-# GitNote Flutter
+# casual
 
 基于 GitHub/Gitee 的笔记本应用 - Flutter 版
 
@@ -22,7 +22,7 @@
 ### 安装依赖
 
 ```bash
-git clone https://github.com/yourusername/gitnote_flutter.git
+git clone https://github.com/yourusername/casual.git
 cd gitnote_flutter
 flutter pub get
 ```
@@ -72,13 +72,15 @@ flutter run -d chrome
 
 1. 进入**提醒**页面（导航栏闹钟图标）
 2. 点击 **+** 新建提醒，填写标题、时间、重复方式
-3. 到达设定时间后会弹出系统通知「GitNote 助手」
+3. 到达设定时间后会弹出系统通知「casual 助手」
 
 **注意事项**：
 
-- 提醒依赖应用进程：**应用必须处于运行状态**（可以最小化），完全退出后不会触发通知
-- Windows 端请确认系统**设置 → 系统 → 通知**中允许 GitNote 通知，且未开启"勿扰模式/专注助手"
-- 单次提醒若所选时分当天已过，保存时会自动顺延到明天同一时间
+- Windows 端提醒依赖应用进程：**应用必须处于运行状态**（可以最小化），完全退出后不会触发通知
+- Android 端提醒使用系统通知调度；请允许通知权限，Android 12+ 若拒绝精确闹钟权限，提醒可能延迟但不应完全丢失
+- Android/MIUI 若通知只进通知栏不弹出，请在系统通知设置里允许「Assistant alarms」渠道的横幅/声音
+- Windows 端请确认系统**设置 → 系统 → 通知**中允许 casual 通知，且未开启"勿扰模式/专注助手"
+- 新建单次提醒默认下一分钟；选择当前分钟会在约 10 秒后触发，更早时间会顺延到明天同一时间
 
 ## 项目结构
 
@@ -108,6 +110,8 @@ doc/                       # 📚 项目文档
 ├── architecture.md        # 架构设计
 ├── features.md            # 核心功能
 ├── data-flow.md           # 数据流
+├── sync-design.md         # 同步策略设计（v2，设计稿）
+├── figma-redesign/        # Figma 重设计交付资料
 ├── api.md                 # API 文档
 └── development.md         # 开发指南
 ```
@@ -121,6 +125,10 @@ doc/                       # 📚 项目文档
 ### 架构设计
 - [架构设计](./doc/architecture.md) - 整体架构、目录结构、设计模式
 - [数据流](./doc/data-flow.md) - 笔记同步、数据存储、冲突处理逻辑
+- [同步策略设计 v2](./doc/sync-design.md) - 多端同步重新设计：文档身份、拉推判定、冲突三层处理（设计稿）
+
+### 设计交付
+- [Figma 重设计资料包](./doc/figma-redesign/README.md) - 当前界面描述、Figma 直用 Prompt 与组件覆盖清单
 
 ### API 集成
 - [API 文档](./doc/api.md) - GitHub/Gitee API 调用说明与示例

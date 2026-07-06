@@ -458,6 +458,48 @@ abstract class AppLocalizations {
   /// **'Conflicts'**
   String get conflicts;
 
+  /// No description provided for @syncConflictTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync Conflict'**
+  String get syncConflictTitle;
+
+  /// No description provided for @syncConflictLocalTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Local version'**
+  String get syncConflictLocalTime;
+
+  /// No description provided for @syncConflictRemoteTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote version'**
+  String get syncConflictRemoteTime;
+
+  /// No description provided for @syncConflictTimeUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get syncConflictTimeUnknown;
+
+  /// No description provided for @syncConflictDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Both local and remote versions have been modified. Please choose which version to keep.'**
+  String get syncConflictDescription;
+
+  /// No description provided for @syncConflictKeepLocal.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep Local'**
+  String get syncConflictKeepLocal;
+
+  /// No description provided for @syncConflictTakeRemote.
+  ///
+  /// In en, this message translates to:
+  /// **'Use Remote'**
+  String get syncConflictTakeRemote;
+
   /// No description provided for @noSyncLogs.
   ///
   /// In en, this message translates to:
@@ -991,6 +1033,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Assistant saved'**
   String get reminderSaved;
+
+  /// No description provided for @reminderSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to save assistant: {error}'**
+  String reminderSaveFailed(String error);
 
   /// No description provided for @enterReminderTitle.
   ///

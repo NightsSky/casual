@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../data/sync/sync_engine.dart';
 import '../models/models.dart';
 import '../providers/notes_provider.dart';
 import '../providers/git_provider.dart';
 import '../theme/constants.dart';
 import '../ui/core/extensions/build_context_l10n.dart';
+import '../ui/widgets/conflict_resolution_dialog.dart';
 import '../utils/common_utils.dart';
 
 class RepoPage extends ConsumerWidget {
@@ -156,12 +158,8 @@ class RepoPage extends ConsumerWidget {
 
   Widget _buildActionGrid(BuildContext context, WidgetRef ref, GitState state) {
     final actions = [
-      _ActionData(Icons.download, context.l10n.pullRemote,
-          () => _pullFromRemote(ref, context)),
-      _ActionData(Icons.upload, context.l10n.pushLocal,
-          () => _pushToRemote(ref, context)),
       _ActionData(
-          Icons.sync, context.l10n.fullSync, () => _fullSync(ref, context)),
+          Icons.sync, context.l10n.fullSync, () => _sync(ref, context)),
       _ActionData(Icons.settings, context.l10n.repositorySettings, () {}),
     ];
 
@@ -312,77 +310,59 @@ class RepoPage extends ConsumerWidget {
     }
   }
 
-  Future<void> _pullFromRemote(WidgetRef ref, BuildContext context) async {
+  Future<void> _sync(WidgetRef ref, BuildContext context) async {
     final gitNotifier = ref.read(gitProvider.notifier);
-    final notesNotifier = ref.read(notesProvider.notifier);
-    final pulledRemoteNotes = context.l10n.pulledRemoteNotes;
     final syncFailedMessage = context.l10n.syncFailedMessage;
-
-    if (!ref.read(gitProvider).config.isConfigured) {
-      return;
-    }
-
-    try {
-      final remoteNotes = await gitNotifier.pullNotes();
-      for (final note in remoteNotes) {
-        notesNotifier.importNote(note);
-      }
-      gitNotifier.addSyncLog(
-          SyncLogType.success, pulledRemoteNotes(remoteNotes.length));
-    } catch (e) {
-      gitNotifier.addSyncLog(
-          SyncLogType.error, syncFailedMessage(e.toString()));
-    }
-  }
-
-  Future<void> _pushToRemote(WidgetRef ref, BuildContext context) async {
-    final gitNotifier = ref.read(gitProvider.notifier);
-    final notesNotifier = ref.read(notesProvider.notifier);
-    final notesState = ref.read(notesProvider);
-    final pushSummary = context.l10n.pushSummary;
 
     if (!ref.read(gitProvider).config.isConfigured) return;
 
-    final unsynced = notesState.notes
-        .where((n) => n.syncStatus == SyncStatus.local)
-        .toList();
-    if (unsynced.isEmpty) return;
+    try {
+      final report = await gitNotifier.runSync();
 
-    int successCount = 0;
-    for (final note in unsynced) {
-      try {
-        final result = await gitNotifier.pushNote(note);
-        if (result != null) {
-          notesNotifier.markSynced(note.id, result['filePath'] as String,
-              sha: result['sha'] as String?);
-          successCount++;
+      // 冲突裁决（§7.2）：逐篇弹窗二选一，批量落地后再触发一次同步推送。
+      if (report.pendingConflicts.isNotEmpty && context.mounted) {
+        final resolutions = await _handleConflicts(context, report.pendingConflicts);
+        if (resolutions != null && resolutions.isNotEmpty) {
+          await gitNotifier.resolveConflicts(resolutions);
+          // 用户选了「保留本地」的篇目需推送覆盖远端，再同步一次。
+          await gitNotifier.runSync();
         }
-      } catch (_) {}
-    }
-
-    gitNotifier.addSyncLog(
-        SyncLogType.success, pushSummary(successCount, unsynced.length));
-  }
-
-  Future<void> _fullSync(WidgetRef ref, BuildContext context) async {
-    final gitNotifier = ref.read(gitProvider.notifier);
-    final notesNotifier = ref.read(notesProvider.notifier);
-    final fullSyncSummary = context.l10n.fullSyncSummary;
-    final syncFailedMessage = context.l10n.syncFailedMessage;
-
-    if (!ref.read(gitProvider).config.isConfigured) return;
-
-    try {
-      final remoteNotes = await gitNotifier.fullSync();
-      for (final note in remoteNotes) {
-        notesNotifier.importNote(note);
       }
+
       gitNotifier.addSyncLog(
-          SyncLogType.success, fullSyncSummary(remoteNotes.length));
+          report.failures.isEmpty ? SyncLogType.success : SyncLogType.warning,
+          report.summary());
     } catch (e) {
       gitNotifier.addSyncLog(
           SyncLogType.error, syncFailedMessage(e.toString()));
     }
+  }
+
+  /// 逐篇弹冲突对话框收集裁决（doc/sync-design.md §7.2）。
+  /// 用户可中途取消，返回已收集的部分裁决（引擎落地部分即可）。
+  Future<List<ConflictResolution>?> _handleConflicts(
+    BuildContext context,
+    List<SyncConflict> conflicts,
+  ) async {
+    final resolutions = <ConflictResolution>[];
+    for (var i = 0; i < conflicts.length; i++) {
+      final conflict = conflicts[i];
+      final choice = await showDialog<ConflictChoice>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => ConflictResolutionDialog(
+          conflict: conflict,
+          currentIndex: i,
+          totalCount: conflicts.length,
+        ),
+      );
+      if (choice == null) {
+        // 用户点了取消或按了返回键，中止后续冲突弹窗，返回已收集的部分。
+        break;
+      }
+      resolutions.add(ConflictResolution(conflict: conflict, choice: choice));
+    }
+    return resolutions.isEmpty ? null : resolutions;
   }
 }
 

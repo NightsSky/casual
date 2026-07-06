@@ -100,6 +100,13 @@
   "unsyncedNotes": "Unsynced",
   "syncedNotes": "Synced",
   "conflicts": "Conflicts",
+  "syncConflictTitle": "Sync Conflict",
+  "syncConflictLocalTime": "Local version",
+  "syncConflictRemoteTime": "Remote version",
+  "syncConflictTimeUnknown": "Unknown",
+  "syncConflictDescription": "Both local and remote versions have been modified. Please choose which version to keep.",
+  "syncConflictKeepLocal": "Keep Local",
+  "syncConflictTakeRemote": "Use Remote",
   "noSyncLogs": "No sync logs yet",
   "pulledRemoteNotes": "Pulled {count} remote notes successfully",
   "@pulledRemoteNotes": {
@@ -248,6 +255,14 @@
     }
   },
   "reminderSaved": "Assistant saved",
+  "reminderSaveFailed": "Failed to save assistant: {error}",
+  "@reminderSaveFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "enterReminderTitle": "Enter a title...",
   "selectTime": "Select time",
   "save": "Save",

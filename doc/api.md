@@ -1,6 +1,6 @@
 # API 文档
 
-本文档说明 GitNote 如何调用 GitHub 和 Gitee API 进行远程同步。
+本文档说明 casual 如何调用 GitHub 和 Gitee API 进行远程同步。
 
 ## GitHub API
 
@@ -348,8 +348,69 @@ GitHub API 限流：
 - 接近限额时提示用户
 - 使用 `X-RateLimit-Remaining` 响应头监控
 
+## 同步引擎 v2 远端层（实施中）
+
+> 以下端点由 [同步策略设计 v2](./sync-design.md) 的远端抽象层使用
+> （`lib/data/sync/remote/`，M2 已实现），与上文现行实现并存，M3 接入引擎后取代旧调用链。
+
+### 接口抽象
+
+`RemoteRepo`（`lib/data/sync/remote/remote_repo.dart`）按同步会话步骤提供四个方法：
+`fetchHead` / `listTree` / `fetchBlob` / `commitChanges`。
+类型化异常：`RemoteHeadMovedException`（乐观锁失败，会话重试）、
+`RemoteListingTruncatedException`（清单截断，中止防误删）。
+
+### GitHub 实现（Git Data API，原子提交）
+
+**代码位置**: `lib/data/sync/remote/github_remote.dart`
+
+| 用途 | 接口 | 说明 |
+|------|------|------|
+| 取分支 head | `GET /repos/{o}/{r}/git/ref/heads/{branch}` | 404=分支不存在、409=空仓库 → 均视为无 head |
+| 递归清单 | `GET /repos/{o}/{r}/git/trees/{headSha}?recursive=1` | 一次拿全库 path→blobSha；`truncated: true` 时中止同步 |
+| 读文件内容 | `GET /repos/{o}/{r}/git/blobs/{sha}` | 按 blob sha 寻址，不受 contents API 1MB 限制；base64 带换行需去空白再解码 |
+| 上传内容 | `POST /repos/{o}/{r}/git/blobs` | base64(UTF-8)；幂等（同内容同 sha） |
+| 组装目录树 | `POST /repos/{o}/{r}/git/trees` | `base_tree` = head 提交的 tree；删除项 `sha: null`；重命名 = 旧路径 null + 新路径 blob |
+| 创建提交 | `POST /repos/{o}/{r}/git/commits` | `parents: [expectedHeadSha]`；空仓库首次提交 parents 为空 |
+| 推进引用 | `PATCH /repos/{o}/{r}/git/refs/heads/{branch}` | `force: false`；422/409 → `RemoteHeadMovedException`，引擎重拉重判（≤3 次） |
+| 创建引用 | `POST /repos/{o}/{r}/git/refs` | 空仓库首次推送建分支 |
+
+一批变更 = 一个提交（原子），请求数 ≈ 写入文件数 + 4。
+
+### Gitee 实现（contents API 逐文件降级）
+
+**代码位置**: `lib/data/sync/remote/gitee_remote.dart`
+
+Gitee OpenAPI v5 的 git-data 端点只读，无公开的 create-tree/create-commit/update-ref，
+无法原子提交（见设计文档 §10 平台能力矩阵）：
+
+| 用途 | 接口 | 说明 |
+|------|------|------|
+| 取分支 head | `GET /api/v5/repos/{o}/{r}/branches/{branch}` | 404 → 无 head |
+| 递归清单 | `GET /api/v5/repos/{o}/{r}/git/trees/{sha}?recursive=1` | 与 GitHub 同构 |
+| 读文件内容 | `GET /api/v5/repos/{o}/{r}/git/blobs/{sha}` | base64 解码 |
+| 创建文件 | `POST /api/v5/repos/{o}/{r}/contents/{path}` | 每文件一个提交 |
+| 更新文件 | `PUT /api/v5/repos/{o}/{r}/contents/{path}` | 必须带 `sha`（per-file 乐观锁） |
+| 删除文件 | `DELETE /api/v5/repos/{o}/{r}/contents/{path}` | body 携带 `sha`/`branch`/`message` |
+
+降级语义：单文件失败只记录不中断批次；重命名 = 先建新路径成功后再删旧路径，
+中断时最多残留旧文件、绝不丢内容。认证沿用 `access_token` query 参数；
+contents 路径逐段 URL 转义（文件名可含中文/空格/`#`）。
+
+### 真仓库联调
+
+```bash
+dart run tool/remote_live_check.dart \
+  --platform github --owner <owner> --repo <测试仓库> --token <token> [--branch main] [--keep]
+```
+
+脚本只在 `.gitnote-live-check/` 目录下读写并默认自清理，覆盖：head 前进、
+清单可见性、**本地 computeBlobSha 与服务端 blob sha 一致性**、UTF-8 内容往返、
+更新/重命名乐观锁、删除清理。
+
 ## 相关文档
 
 - [架构设计](./architecture.md) - 整体架构说明
 - [数据流](./data-flow.md) - 同步流程详解
 - [核心功能](./features.md) - 功能详细说明
+- [同步策略设计 v2](./sync-design.md) - 同步机制重新设计与实施进度
