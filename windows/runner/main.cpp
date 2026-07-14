@@ -1,6 +1,7 @@
 #include <desktop_multi_window/desktop_multi_window_plugin.h>
 #include <flutter/dart_project.h>
 #include <flutter/flutter_view_controller.h>
+#include <screen_retriever_windows/screen_retriever_windows_plugin_c_api.h>
 #include <window_manager/window_manager_plugin.h>
 #include <windows.h>
 
@@ -29,16 +30,22 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   // handler null. After that, invokeMethod(0, ...) from a sub-window throws
   // MissingPluginException, so note edits never reach the main window and are
   // silently lost. Register only the plugins a sub-window truly needs, one by one.
-  // Independent note windows need only window_manager for lightweight window
-  // controls such as "always on top" and opacity. Registering this single plugin
-  // keeps the child window event channel intact while letting Dart control the
-  // current child HWND.
+  // Independent note windows and reminder popup windows need window_manager
+  // for lightweight child-window controls such as title-bar hiding, "always on
+  // top", opacity, and frameless popup styling. The reminder popup window also
+  // self-positions to the work-area bottom-right, so it needs screen_retriever
+  // to query the primary display bounds; without it the child engine throws
+  // MissingPluginException on getPrimaryDisplay. Registering only these two
+  // plugins keeps the child window event channel intact while letting Dart
+  // control the current child HWND.
   DesktopMultiWindowSetWindowCreatedCallback([](void *controller) {
     auto flutter_controller =
         reinterpret_cast<flutter::FlutterViewController *>(controller);
+    auto registry = flutter_controller->engine();
     WindowManagerPluginRegisterWithRegistrar(
-        flutter_controller->engine()->GetRegistrarForPlugin(
-            "WindowManagerPlugin"));
+        registry->GetRegistrarForPlugin("WindowManagerPlugin"));
+    ScreenRetrieverWindowsPluginCApiRegisterWithRegistrar(
+        registry->GetRegistrarForPlugin("ScreenRetrieverWindowsPluginCApi"));
   });
 
   flutter::DartProject project(L"data");

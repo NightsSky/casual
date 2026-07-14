@@ -658,7 +658,7 @@ class _ReminderDialogState extends ConsumerState<_ReminderDialog> {
         .rescheduledIfExpired();
 
     try {
-      // 保存提示必须等本地持久化和系统通知调度完成后再展示，
+      // 保存提示必须等本地持久化和提醒调度完成后再展示，
       // 否则 Android 权限或系统调度异常会被“已保存”提示掩盖。
       if (widget.reminder == null) {
         await ref.read(reminderProvider.notifier).addReminder(reminder);

@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:screen_retriever/screen_retriever.dart';
 
 import '../domain/models/note.dart';
 import '../providers/notes_provider.dart';
@@ -43,6 +45,16 @@ class NoteWindowService {
   static const _windowSize = Size(520, 640);
   static const _reconcileInterval = Duration(seconds: 2);
 
+  /// 标签模式窗口的初始尺寸：默认以折叠的胶囊态呈现（仅一行首行文字）。
+  /// 展开态由子窗口自身放大高度，主窗口只负责给出初始贴边落点。
+  ///
+  /// 折叠窗口高度 = 胶囊本体 [_tagCapsuleHeight] + 下方透明区。透明区供子窗口的
+  /// Flutter Tooltip 与投影落地（Overlay 会被窗口边界裁剪，窗口若只有胶囊本身大小
+  /// 悬浮提示就显示不出来）。此处两值必须与 NoteTagWindowPage 的同名常量保持一致。
+  static const double _tagCapsuleHeight = 52;
+  static const _tagWindowSize = Size(240, _tagCapsuleHeight + 56);
+  static const double _tagScreenMargin = 12;
+
   /// 多窗口功能仅 Windows 桌面开放。macOS/Linux 虽然插件支持，
   /// 但本项目未做适配验证（原生入口注册、窗口样式），暂不放开。
   static bool get isSupported => !kIsWeb && Platform.isWindows;
@@ -52,9 +64,18 @@ class NoteWindowService {
       isSupported &&
       (note.format == NoteFormat.txt || note.format == NoteFormat.markdown);
 
+  /// 是否支持标签模式：标签模式是子窗口的优化形态，仅 txt 笔记开放。
+  static bool canUseTagMode(Note note) =>
+      isSupported && note.format == NoteFormat.txt;
+
   /// 在独立窗口中打开笔记；若已打开则聚焦既有窗口（去重）。
-  Future<void> openNoteWindow(Note note) async {
-    if (!canDetach(note)) return;
+  ///
+  /// [asTag] 为 true 时以标签模式打开（仅 txt）：窗口初始为贴屏幕右侧的
+  /// 折叠胶囊，只显示首行文字，点击胶囊在子窗口内展开完整内容。标签模式与
+  /// 普通独立窗口共用同一套去重登记表与 IPC 回写链路，仅初始形态不同。
+  Future<void> openNoteWindow(Note note, {bool asTag = false}) async {
+    // 标签模式仅 txt 开放；其余情况回退到普通独立窗口能力判断。
+    if (asTag ? !canUseTagMode(note) : !canDetach(note)) return;
     _ensureHandler();
 
     if (await _focusIfAlive(note.id)) return;
@@ -64,18 +85,56 @@ class NoteWindowService {
       'title': note.title,
       'content': note.content,
       'format': note.format.name,
+      // 子窗口据此决定以胶囊标签态还是完整编辑器启动。
+      'mode': asTag ? 'tag' : 'window',
     }));
-    // 多个窗口按打开顺序阶梯错开，避免完全重叠。
-    final cascade = (_noteWindows.length % 5) * 32.0;
-    await controller.setFrame(
-      Offset(160 + cascade, 120 + cascade) & _windowSize,
-    );
-    await controller.setTitle(note.title.isEmpty ? 'casual' : note.title);
+
+    if (asTag) {
+      // 标签窗口贴屏幕右侧、纵向居中，模拟便签贴边效果。
+      await controller.setFrame(await _resolveTagFrame());
+    } else {
+      // 多个普通窗口按打开顺序阶梯错开，避免完全重叠。
+      final cascade = (_noteWindows.length % 5) * 32.0;
+      await controller.setFrame(
+        Offset(160 + cascade, 120 + cascade) & _windowSize,
+      );
+    }
+    // 子窗口原生标题栏只保留系统窗口控制按钮，笔记标题显示在窗口内容区，
+    // 避免同一标题在 Windows 标题栏和应用标题栏重复出现。
+    await controller.setTitle('');
     await controller.show();
 
     _noteWindows[note.id] = controller.windowId;
     _syncOpenSet();
     _startReconcile();
+  }
+
+  /// 计算标签窗口初始落点：贴主显示器工作区右侧、纵向居中。
+  /// 屏幕信息不可用时回退到原点，保证功能不因定位失败而中断。
+  Future<Rect> _resolveTagFrame() async {
+    try {
+      final display = await screenRetriever.getPrimaryDisplay();
+      final visiblePosition = display.visiblePosition ?? Offset.zero;
+      final visibleSize = display.visibleSize ?? display.size;
+      final left = visiblePosition.dx +
+          visibleSize.width -
+          _tagWindowSize.width -
+          _tagScreenMargin;
+      // 胶囊贴窗口顶部，透明区向下延伸；按胶囊本体（非整窗高）做垂直居中，
+      // 让可见胶囊落在屏幕中线，避免因下方透明区把胶囊整体推高。
+      final top = visiblePosition.dy +
+          math.max(0, (visibleSize.height - _tagCapsuleHeight) / 2);
+      return Rect.fromLTWH(
+        math.max(visiblePosition.dx, left),
+        top,
+        _tagWindowSize.width,
+        _tagWindowSize.height,
+      );
+    } on PlatformException {
+      return Offset.zero & _tagWindowSize;
+    } on MissingPluginException {
+      return Offset.zero & _tagWindowSize;
+    }
   }
 
   /// 聚焦某笔记的独立窗口（若存在）。供编辑页只读横幅的"聚焦窗口"按钮使用。

@@ -4,7 +4,9 @@ import '../services/reminder_service.dart';
 import '../data/services/storage_service.dart';
 
 final reminderServiceProvider = Provider<ReminderService>((ref) {
-  return ReminderService(StorageService());
+  final service = ReminderService(StorageService());
+  ref.onDispose(service.dispose);
+  return service;
 });
 
 final reminderProvider =
@@ -78,9 +80,8 @@ class ReminderNotifier extends StateNotifier<ReminderState> {
   }
 
   Future<void> updateReminder(Reminder reminder) async {
-    final updatedReminders = state.reminders
-        .map((r) => r.id == reminder.id ? reminder : r)
-        .toList();
+    final updatedReminders =
+        state.reminders.map((r) => r.id == reminder.id ? reminder : r).toList();
     state = state.copyWith(reminders: updatedReminders);
 
     await _service.saveReminders(updatedReminders);
@@ -94,8 +95,7 @@ class ReminderNotifier extends StateNotifier<ReminderState> {
   Future<void> deleteReminder(String id) async {
     await _service.cancelReminder(id);
 
-    final updatedReminders =
-        state.reminders.where((r) => r.id != id).toList();
+    final updatedReminders = state.reminders.where((r) => r.id != id).toList();
     state = state.copyWith(reminders: updatedReminders);
 
     await _service.saveReminders(updatedReminders);

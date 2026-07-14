@@ -24,6 +24,26 @@ String? extractTitle(String content) {
   return null;
 }
 
+/// txt 笔记的派生标题：取正文首个非空行、截断至 80 字符。
+///
+/// txt 笔记没有独立标题字段（不再向用户展示标题输入框），标题完全由正文
+/// 首行派生，用于列表卡片显示与同步文件名（allocatePath）。全空内容返回空串，
+/// 由上层回退到默认「无标题」文案 / untitled 文件名。
+String deriveTxtTitle(String content) {
+  if (content.isEmpty) return '';
+  for (final line in content.split('\n')) {
+    final trimmed = line.trim();
+    if (trimmed.isEmpty) continue;
+    if (trimmed.length <= 80) return trimmed;
+    var cut = trimmed.substring(0, 80);
+    // 避免截断在 UTF-16 代理对中间产生非法字符。
+    final last = cut.codeUnitAt(cut.length - 1);
+    if (last >= 0xD800 && last <= 0xDBFF) cut = cut.substring(0, cut.length - 1);
+    return cut;
+  }
+  return '';
+}
+
 List<String> extractTags(String content) {
   if (content.isEmpty) return [];
 

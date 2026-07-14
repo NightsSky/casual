@@ -157,6 +157,11 @@
   "reminderSaved": "助手已保存",
   "reminderSaveFailed": "助手保存失败：{error}",
   "enterReminderTitle": "输入标题...",
+  "reminderAlarmTitle": "提醒时间到",
+  "reminderAlarmDefaultBody": "该处理这个助手了",
+  "reminderAlarmSource": "本地助手提醒",
+  "reminderAlarmLater": "稍后提醒",
+  "reminderAlarmAcknowledge": "我知道了",
   "selectTime": "选择时间",
   "save": "保存",
   "confirm": "确定",
@@ -179,5 +184,13 @@
   "noteWindowUnpinFromTop": "取消桌面置顶",
   "noteWindowOpacity": "窗口透明度",
   "noteWindowOpacityValue": "{percent}%",
-  "noteWindowUnreachable": "无法连接主窗口，当前编辑不会被保存"
+  "noteWindowMove": "拖动窗口",
+  "noteWindowMinimize": "最小化窗口",
+  "noteWindowMaximize": "最大化窗口",
+  "noteWindowRestore": "还原窗口",
+  "noteWindowClose": "关闭窗口",
+  "noteWindowUnreachable": "无法连接主窗口，当前编辑不会被保存",
+  "openAsTagWindow": "以标签模式打开",
+  "noteTagExpand": "展开笔记",
+  "noteTagCollapse": "收起为标签"
 }

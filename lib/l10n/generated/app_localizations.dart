@@ -1046,6 +1046,36 @@ abstract class AppLocalizations {
   /// **'Enter a title...'**
   String get enterReminderTitle;
 
+  /// No description provided for @reminderAlarmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminder due'**
+  String get reminderAlarmTitle;
+
+  /// No description provided for @reminderAlarmDefaultBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Time to handle this assistant'**
+  String get reminderAlarmDefaultBody;
+
+  /// No description provided for @reminderAlarmSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Local assistant reminder'**
+  String get reminderAlarmSource;
+
+  /// No description provided for @reminderAlarmLater.
+  ///
+  /// In en, this message translates to:
+  /// **'Remind later'**
+  String get reminderAlarmLater;
+
+  /// No description provided for @reminderAlarmAcknowledge.
+  ///
+  /// In en, this message translates to:
+  /// **'Got it'**
+  String get reminderAlarmAcknowledge;
+
   /// No description provided for @selectTime.
   ///
   /// In en, this message translates to:
@@ -1178,11 +1208,59 @@ abstract class AppLocalizations {
   /// **'{percent}%'**
   String noteWindowOpacityValue(int percent);
 
+  /// No description provided for @noteWindowMove.
+  ///
+  /// In en, this message translates to:
+  /// **'Move window'**
+  String get noteWindowMove;
+
+  /// No description provided for @noteWindowMinimize.
+  ///
+  /// In en, this message translates to:
+  /// **'Minimize window'**
+  String get noteWindowMinimize;
+
+  /// No description provided for @noteWindowMaximize.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximize window'**
+  String get noteWindowMaximize;
+
+  /// No description provided for @noteWindowRestore.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore window'**
+  String get noteWindowRestore;
+
+  /// No description provided for @noteWindowClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Close window'**
+  String get noteWindowClose;
+
   /// No description provided for @noteWindowUnreachable.
   ///
   /// In en, this message translates to:
   /// **'Cannot reach the main window; edits are not being saved'**
   String get noteWindowUnreachable;
+
+  /// No description provided for @openAsTagWindow.
+  ///
+  /// In en, this message translates to:
+  /// **'Open as sticky tag'**
+  String get openAsTagWindow;
+
+  /// No description provided for @noteTagExpand.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand note'**
+  String get noteTagExpand;
+
+  /// No description provided for @noteTagCollapse.
+  ///
+  /// In en, this message translates to:
+  /// **'Collapse to tag'**
+  String get noteTagCollapse;
 }
 
 class _AppLocalizationsDelegate

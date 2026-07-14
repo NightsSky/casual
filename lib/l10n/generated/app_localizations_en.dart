@@ -532,6 +532,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get enterReminderTitle => 'Enter a title...';
 
   @override
+  String get reminderAlarmTitle => 'Reminder due';
+
+  @override
+  String get reminderAlarmDefaultBody => 'Time to handle this assistant';
+
+  @override
+  String get reminderAlarmSource => 'Local assistant reminder';
+
+  @override
+  String get reminderAlarmLater => 'Remind later';
+
+  @override
+  String get reminderAlarmAcknowledge => 'Got it';
+
+  @override
   String get selectTime => 'Select time';
 
   @override
@@ -604,6 +619,30 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get noteWindowMove => 'Move window';
+
+  @override
+  String get noteWindowMinimize => 'Minimize window';
+
+  @override
+  String get noteWindowMaximize => 'Maximize window';
+
+  @override
+  String get noteWindowRestore => 'Restore window';
+
+  @override
+  String get noteWindowClose => 'Close window';
+
+  @override
   String get noteWindowUnreachable =>
       'Cannot reach the main window; edits are not being saved';
+
+  @override
+  String get openAsTagWindow => 'Open as sticky tag';
+
+  @override
+  String get noteTagExpand => 'Expand note';
+
+  @override
+  String get noteTagCollapse => 'Collapse to tag';
 }

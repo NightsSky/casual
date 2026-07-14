@@ -169,8 +169,8 @@ class _EditorPageState extends ConsumerState<EditorPage> {
         _contentController.text.replaceAll(RegExp(r'\s'), '').length;
     final isDesktop = getScreenType(context) == ScreenType.desktop;
 
-    // 独立窗口并发保护（仅 Windows 桌面）：笔记拖出期间本编辑器只读，
-    // 独立窗口的编辑经主窗口 provider 回流后实时镜像到这里。
+    // 独立窗口并发保护（仅 Windows 桌面）：笔记拖出期间主窗口不再渲染标题输入区、
+    // 标签、正文编辑器或预览，只保留只读占位和聚焦入口，避免双端同时操作同一笔记。
     _isDetached = widget.noteId != null &&
         ref.watch(externallyOpenNotesProvider).contains(widget.noteId);
     ref.listen<NotesState>(notesProvider, (prev, next) {
@@ -179,15 +179,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
           .cast<Note?>()
           .firstWhere((n) => n?.id == widget.noteId, orElse: () => null);
       if (note == null) return;
-      if (_titleController.text == note.title &&
-          _contentController.text == note.content) {
-        return;
-      }
-      setState(() {
-        _cachedNote = note;
-        _titleController.text = note.title;
-        _contentController.text = note.content;
-      });
+      _cachedNote = note;
     });
     ref.listen<Set<String>>(externallyOpenNotesProvider, (prev, next) {
       final id = widget.noteId;
@@ -212,52 +204,75 @@ class _EditorPageState extends ConsumerState<EditorPage> {
       },
       child: Column(
         children: [
-          _buildNavbar(context, isDesktop),
-          if (_isDetached) _buildDetachedBanner(context),
-          _buildTitleInput(context, isDesktop),
-          _buildTagsRow(),
-          Expanded(child: _isPreview ? _buildPreview() : _buildEditor()),
-          _buildFooter(wordCount),
+          _buildNavbar(context, isDesktop, isDetached: _isDetached),
+          if (_isDetached)
+            Expanded(child: _buildDetachedNotice(context))
+          else ...[
+            _buildTitleInput(context, isDesktop),
+            _buildTagsRow(),
+            Expanded(child: _isPreview ? _buildPreview() : _buildEditor()),
+            _buildFooter(wordCount),
+          ],
         ],
       ),
     );
   }
 
-  /// 只读提示横幅：笔记正在独立窗口中编辑。
-  Widget _buildDetachedBanner(BuildContext context) {
+  /// 独立窗口只读占位：主窗口不展示任何可编辑或可预览的笔记内容，
+  /// 只提供当前笔记已移交独立窗口的状态提示和聚焦入口。
+  Widget _buildDetachedNotice(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg, vertical: AppSpacing.xs),
-      color: AppColors.warning.withValues(alpha: 0.12),
-      child: Row(
-        children: [
-          const Icon(Icons.open_in_new, size: 14, color: AppColors.warning),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(
-              context.l10n.noteDetachedBanner,
-              style: const TextStyle(
-                  fontSize: AppFontSize.sm, color: AppColors.warning),
-            ),
+      color: AppColors.bgSecondary,
+      child: Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: _pageHorizontalPadding(context),
+            vertical: AppSpacing.xxl,
           ),
-          TextButton(
-            onPressed: () => ref
-                .read(noteWindowServiceProvider)
-                .focusNoteWindow(widget.noteId!),
-            style: TextButton.styleFrom(
-              visualDensity: VisualDensity.compact,
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-            ),
-            child: Text(context.l10n.focusNoteWindow,
-                style: const TextStyle(fontSize: AppFontSize.sm)),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.open_in_new,
+                size: 40,
+                color: AppColors.warning.withValues(alpha: 0.88),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                context.l10n.noteDetachedBanner,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: AppFontSize.base,
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              FilledButton.icon(
+                onPressed: () => ref
+                    .read(noteWindowServiceProvider)
+                    .focusNoteWindow(widget.noteId!),
+                icon: const Icon(Icons.filter_center_focus, size: 18),
+                label: Text(context.l10n.focusNoteWindow),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.lg,
+                    vertical: AppSpacing.sm,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildNavbar(BuildContext context, bool isDesktop) {
+  Widget _buildNavbar(BuildContext context, bool isDesktop,
+      {bool isDetached = false}) {
     return Container(
       padding: EdgeInsets.fromLTRB(
         AppSpacing.md,
@@ -288,7 +303,11 @@ class _EditorPageState extends ConsumerState<EditorPage> {
           ),
           Expanded(
             child: Text(
-              _note?.title ?? context.l10n.newNote,
+              // txt 无独立标题（派生自首行），空内容时派生为空串，
+              // 与"未选中笔记"一并回退到「无标题」文案，避免导航栏留白。
+              (_note?.title.isNotEmpty ?? false)
+                  ? _note!.title
+                  : context.l10n.untitledNote,
               style: const TextStyle(
                   fontSize: AppFontSize.base, fontWeight: FontWeight.w600),
               textAlign: TextAlign.center,
@@ -296,61 +315,68 @@ class _EditorPageState extends ConsumerState<EditorPage> {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          TextButton.icon(
-            onPressed: () => setState(() => _isPreview = !_isPreview),
-            icon: Icon(
-              _isPreview ? Icons.edit_outlined : Icons.visibility_outlined,
-              size: 18,
-            ),
-            label: Text(
-              _isPreview ? context.l10n.edit : context.l10n.preview,
-              style: const TextStyle(fontSize: AppFontSize.sm),
-            ),
-            style: TextButton.styleFrom(
-              foregroundColor: AppColors.primary,
-              backgroundColor: AppColors.primaryLight.withValues(alpha: 0.55),
-              visualDensity: VisualDensity.compact,
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
-                vertical: AppSpacing.xs,
+          if (!isDetached) ...[
+            TextButton.icon(
+              onPressed: () => setState(() => _isPreview = !_isPreview),
+              icon: Icon(
+                _isPreview ? Icons.edit_outlined : Icons.visibility_outlined,
+                size: 18,
               ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.md),
+              label: Text(
+                _isPreview ? context.l10n.edit : context.l10n.preview,
+                style: const TextStyle(fontSize: AppFontSize.sm),
+              ),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                backgroundColor: AppColors.primaryLight.withValues(alpha: 0.55),
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.xs,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                ),
               ),
             ),
-          ),
-          PopupMenuButton<String>(
-            icon: const Icon(
-              Icons.more_horiz,
-              size: 20,
-              color: AppColors.textSecondary,
+            PopupMenuButton<String>(
+              icon: const Icon(
+                Icons.more_horiz,
+                size: 20,
+                color: AppColors.textSecondary,
+              ),
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                    value: 'sync', child: Text(context.l10n.syncToRemote)),
+                PopupMenuItem(
+                    value: 'tags', child: Text(context.l10n.manageTags)),
+                PopupMenuItem(
+                    value: 'export', child: Text(context.l10n.exportMarkdown)),
+                if (_note?.format == NoteFormat.markdown)
+                  const PopupMenuItem(
+                      value: 'convertToTxt', child: Text('转换为 TXT')),
+                if (_note?.format == NoteFormat.txt)
+                  const PopupMenuItem(
+                      value: 'convertToMarkdown', child: Text('转换为 Markdown')),
+                PopupMenuItem(
+                    value: 'delete',
+                    child: Text(context.l10n.deleteNote,
+                        style: const TextStyle(color: AppColors.error))),
+              ],
+              onSelected: (value) => _handleMenuAction(value),
             ),
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                  value: 'sync', child: Text(context.l10n.syncToRemote)),
-              PopupMenuItem(
-                  value: 'tags', child: Text(context.l10n.manageTags)),
-              PopupMenuItem(
-                  value: 'export', child: Text(context.l10n.exportMarkdown)),
-              if (_note?.format == NoteFormat.markdown)
-                const PopupMenuItem(
-                    value: 'convertToTxt', child: Text('转换为 TXT')),
-              if (_note?.format == NoteFormat.txt)
-                const PopupMenuItem(
-                    value: 'convertToMarkdown', child: Text('转换为 Markdown')),
-              PopupMenuItem(
-                  value: 'delete',
-                  child: Text(context.l10n.deleteNote,
-                      style: const TextStyle(color: AppColors.error))),
-            ],
-            onSelected: (value) => _handleMenuAction(value),
-          ),
+          ] else
+            const SizedBox(width: 36),
         ],
       ),
     );
   }
 
   Widget _buildTitleInput(BuildContext context, bool isDesktop) {
+    // txt 笔记无独立标题（标题从正文首行派生），不展示标题输入区；
+    // 导航栏中央仍显示派生标题用于辨识。
+    if (_note?.format == NoteFormat.txt) return const SizedBox.shrink();
+
     return Container(
       width: double.infinity,
       decoration: const BoxDecoration(
@@ -398,6 +424,11 @@ class _EditorPageState extends ConsumerState<EditorPage> {
                         fontWeight: FontWeight.w400,
                       ),
                       border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      disabledBorder: InputBorder.none,
+                      errorBorder: InputBorder.none,
+                      focusedErrorBorder: InputBorder.none,
                       filled: false,
                       contentPadding: EdgeInsets.zero,
                       isDense: true,
@@ -550,6 +581,11 @@ class _EditorPageState extends ConsumerState<EditorPage> {
                                   color: AppColors.textPlaceholder,
                                 ),
                                 border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                                disabledBorder: InputBorder.none,
+                                errorBorder: InputBorder.none,
+                                focusedErrorBorder: InputBorder.none,
                                 filled: false,
                                 contentPadding: EdgeInsets.zero,
                               ),

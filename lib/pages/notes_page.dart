@@ -221,10 +221,25 @@ class _NotesPageState extends ConsumerState<NotesPage> {
             ],
           ),
         ),
+        // 标签模式是子窗口的优化形态，仅 txt 开放：贴屏幕右侧的折叠胶囊便签。
+        if (NoteWindowService.canUseTagMode(note))
+          PopupMenuItem(
+            value: 'openAsTag',
+            child: Row(
+              children: [
+                const Icon(Icons.push_pin_outlined,
+                    size: 16, color: AppColors.textSecondary),
+                const SizedBox(width: AppSpacing.sm),
+                Text(context.l10n.openAsTagWindow),
+              ],
+            ),
+          ),
       ],
     );
     if (value == 'openInWindow') {
       ref.read(noteWindowServiceProvider).openNoteWindow(note);
+    } else if (value == 'openAsTag') {
+      ref.read(noteWindowServiceProvider).openNoteWindow(note, asTag: true);
     }
   }
 
@@ -681,7 +696,9 @@ class _NoteCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      note.title,
+                      note.title.isEmpty
+                          ? context.l10n.untitledNote
+                          : note.title,
                       style: const TextStyle(
                           fontSize: AppFontSize.lg,
                           fontWeight: FontWeight.w600),

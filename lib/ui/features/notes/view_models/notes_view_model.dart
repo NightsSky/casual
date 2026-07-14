@@ -119,9 +119,13 @@ class NotesNotifier extends StateNotifier<NotesState> {
     String category = '未分类',
     NoteFormat format = NoteFormat.txt,
   }) {
+    // txt 无独立标题，标题从正文首行派生（新建时正文通常为空 → 空串，
+    // 由 UI 回退到「无标题」文案），保证与后续编辑保存的派生规则一致。
+    final effectiveTitle =
+        format == NoteFormat.txt ? deriveTxtTitle(content) : title;
     final note = Note(
       id: generateId(),
-      title: title,
+      title: effectiveTitle,
       content: content,
       tags: tags ?? [],
       category: category,
@@ -147,9 +151,16 @@ class NotesNotifier extends StateNotifier<NotesState> {
     if (index == -1) return null;
 
     var note = state.notes[index];
-    var newTitle = title ?? note.title;
     var newContent = content ?? note.content;
     var newTags = tags ?? note.tags;
+    // 生效后的格式（可能因格式转换而改变），标题派生须按新格式判断。
+    final newFormat = format ?? note.format;
+
+    // 标题来源：txt 无独立标题，始终从正文首行派生（忽略调用方传入的 title）；
+    // md 沿用调用方显式传入的标题。格式转换为 txt 时立即按首行重算。
+    var newTitle = newFormat == NoteFormat.txt
+        ? deriveTxtTitle(newContent)
+        : (title ?? note.title);
 
     // 仅在传入 content 时才提取标签，标题由调用方显式传入
     if (content != null) {

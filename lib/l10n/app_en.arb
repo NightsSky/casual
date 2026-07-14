@@ -264,6 +264,11 @@
     }
   },
   "enterReminderTitle": "Enter a title...",
+  "reminderAlarmTitle": "Reminder due",
+  "reminderAlarmDefaultBody": "Time to handle this assistant",
+  "reminderAlarmSource": "Local assistant reminder",
+  "reminderAlarmLater": "Remind later",
+  "reminderAlarmAcknowledge": "Got it",
   "selectTime": "Select time",
   "save": "Save",
   "confirm": "OK",
@@ -300,5 +305,13 @@
       }
     }
   },
-  "noteWindowUnreachable": "Cannot reach the main window; edits are not being saved"
+  "noteWindowMove": "Move window",
+  "noteWindowMinimize": "Minimize window",
+  "noteWindowMaximize": "Maximize window",
+  "noteWindowRestore": "Restore window",
+  "noteWindowClose": "Close window",
+  "noteWindowUnreachable": "Cannot reach the main window; edits are not being saved",
+  "openAsTagWindow": "Open as sticky tag",
+  "noteTagExpand": "Expand note",
+  "noteTagCollapse": "Collapse to tag"
 }

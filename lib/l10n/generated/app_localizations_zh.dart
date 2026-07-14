@@ -520,6 +520,21 @@ class AppLocalizationsZh extends AppLocalizations {
   String get enterReminderTitle => '输入标题...';
 
   @override
+  String get reminderAlarmTitle => '提醒时间到';
+
+  @override
+  String get reminderAlarmDefaultBody => '该处理这个助手了';
+
+  @override
+  String get reminderAlarmSource => '本地助手提醒';
+
+  @override
+  String get reminderAlarmLater => '稍后提醒';
+
+  @override
+  String get reminderAlarmAcknowledge => '我知道了';
+
+  @override
   String get selectTime => '选择时间';
 
   @override
@@ -590,5 +605,29 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get noteWindowMove => '拖动窗口';
+
+  @override
+  String get noteWindowMinimize => '最小化窗口';
+
+  @override
+  String get noteWindowMaximize => '最大化窗口';
+
+  @override
+  String get noteWindowRestore => '还原窗口';
+
+  @override
+  String get noteWindowClose => '关闭窗口';
+
+  @override
   String get noteWindowUnreachable => '无法连接主窗口，当前编辑不会被保存';
+
+  @override
+  String get openAsTagWindow => '以标签模式打开';
+
+  @override
+  String get noteTagExpand => '展开笔记';
+
+  @override
+  String get noteTagCollapse => '收起为标签';
 }

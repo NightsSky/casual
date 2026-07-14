@@ -40,9 +40,16 @@ NotesViewModel.updateNote()
 ```
 
 **代码位置**：
-- UI 触发：`lib/pages/editor_page.dart:228` (title), `lib/pages/editor_page.dart:297` (content)
+- UI 触发：`lib/pages/editor_page.dart` (content)
 - 保存逻辑：`lib/pages/editor_page.dart:79-91` (`_saveNote`)
 - ViewModel：`lib/providers/notes_provider.dart` (`updateNote`)
+
+> **txt 标题派生**：txt 笔记无独立标题字段，编辑器不显示标题输入框。
+> `updateNote` / `createNote` 对 txt 始终从正文首行派生 `Note.title`（首个非空行、
+> 截断 80 字符，`deriveTxtTitle`，见 `lib/utils/markdown_utils.dart`），忽略调用方
+> 传入的 title；Markdown 仍沿用显式标题。派生标题用于列表卡片显示与同步文件名
+> 分配（`allocatePath`），空内容回退为「无标题」文案 / `untitled` 文件名。独立窗口
+> 回传主窗口的 title 对 txt 无效（主窗口按正文重新派生）。
 
 ### 删除笔记
 
@@ -186,7 +193,10 @@ _onTick()：遍历内存表中各提醒的下次触发时间
 到期（距现在 ≤ 5 秒）
     ├─> 从存储重读提醒，校验仍存在且启用
     ├─> 去重检查（同一触发点只发一次）
-    ├─> local_notifier 弹出系统 Toast（「casual 助手」+ 提醒标题）
+    ├─> ReminderService.windowsAlarmStream 发出提醒事件
+    ├─> ReminderAlarmHost 优先创建右下角独立提醒小窗口（主窗口不恢复到前台）
+    ├─> 展示钉钉风格提醒卡片（内容 = 提醒标题）
+    ├─> 子窗口不可用时回退到主窗口 Dialog，避免提醒丢失
     └─> 计算下一次触发时间
             ├─> 有下次（重复提醒）：更新内存表
             └─> 无下次（单次提醒）：从内存表移除，表空则停止 Timer
@@ -194,7 +204,8 @@ _onTick()：遍历内存表中各提醒的下次触发时间
 
 **代码位置**：
 - 轮询与触发：`lib/services/reminder_service.dart:186-250` (`_onTick`)
-- 弹出通知：`lib/services/reminder_service.dart:252-268` (`_showWindowsNotification`)
+- 弹窗调度：`lib/widgets/reminder_alarm_host.dart` (`ReminderAlarmHost`)
+- 独立提醒窗口：`lib/services/reminder_alarm_window_service.dart`、`lib/pages/reminder_alarm_window_page.dart`
 
 ### 应用启动时恢复调度
 
@@ -241,7 +252,8 @@ NoteWindowService.openNoteWindow(note)
             ↓
         主窗口记录 noteId → windowId 映射，externallyOpenNotesProvider 加入该 noteId
             ↓
-        主窗口编辑器（若打开同一笔记）进入只读模式
+        主窗口编辑器（若打开同一笔记）进入只读占位模式
+        仅显示"此笔记正在独立窗口中编辑，此处为只读"与"聚焦窗口"
 ```
 
 ### 子窗口编辑回传
@@ -259,10 +271,12 @@ NotesViewModel.updateNote()（更新时间戳、置 syncStatus=local、提取标
     ↓
 更新主窗口内存状态（notesProvider）→ 保存到 shared_preferences
     ↓
-主窗口列表/只读编辑器经 provider 监听实时镜像刷新
+主窗口列表经 provider 监听刷新，主窗口编辑器只更新缓存，不展示预览或编辑界面
 ```
 
-> ⚠️ **原生注册陷阱（务必遵守）**：上面这条回传链路依赖**子窗口引擎的事件通道**（`mixin.one/flutter_multi_window_channel`）始终有效。`windows/runner/main.cpp` 的 `DesktopMultiWindowSetWindowCreatedCallback` **绝不能**对子窗口调用完整的 `RegisterPlugins()`——那会重新执行 desktop_multi_window 自身的注册（用 windowId 0 重注册事件通道，又因主窗口已存在而在析构时把该通道 handler 置空），导致子窗口通道失效。此后 `invokeMethod(0, ...)` 抛 `MissingPluginException`（注意它**不是** `PlatformException` 的子类），编辑无法回传主窗口，且若捕获不当会**静默丢失**。子窗口只应按需逐个注册真正用到的插件；当前仅额外注册 `window_manager`，用于独立窗口的桌面置顶与透明度调整。
+> txt 笔记无独立标题：子窗口回传的 `title` 对 txt 无效，主窗口 `updateNote()` 一律按正文首行重新派生标题（`deriveTxtTitle`）。子窗口 txt 标题行也只读展示派生结果，不提供标题输入框。
+
+> ⚠️ **原生注册陷阱（务必遵守）**：上面这条回传链路依赖**子窗口引擎的事件通道**（`mixin.one/flutter_multi_window_channel`）始终有效。`windows/runner/main.cpp` 的 `DesktopMultiWindowSetWindowCreatedCallback` **绝不能**对子窗口调用完整的 `RegisterPlugins()`——那会重新执行 desktop_multi_window 自身的注册（用 windowId 0 重注册事件通道，又因主窗口已存在而在析构时把该通道 handler 置空），导致子窗口通道失效。此后 `invokeMethod(0, ...)` 抛 `MissingPluginException`（注意它**不是** `PlatformException` 的子类），编辑无法回传主窗口，且若捕获不当会**静默丢失**。子窗口只应按需逐个注册真正用到的插件；当前仅额外注册 `window_manager`，用于独立窗口隐藏原生标题栏、窗口控制、桌面置顶与透明度调整。
 
 ### 窗口关闭与对账
 
@@ -271,7 +285,7 @@ NotesViewModel.updateNote()（更新时间戳、置 syncStatus=local、提取标
     ↓
 NoteWindowService._reconcile()
     ├─> getAllSubWindowIds() 对账：窗口已被用户关闭 → 移除映射，
-    │   externallyOpenNotesProvider 移除该 noteId → 主窗口编辑器解除只读并加载最新内容
+    │   externallyOpenNotesProvider 移除该 noteId → 主窗口编辑器解除只读占位并加载最新内容
     └─> 笔记已在主窗口被删除 → 主动 close 对应子窗口（孤儿窗口清理）
 ```
 
@@ -280,7 +294,7 @@ NoteWindowService._reconcile()
 - 子窗口入口分流：`lib/main.dart`（`main` 函数开头）
 - 子窗口编辑器：`lib/pages/note_window_page.dart`
 - 拖出交互：`lib/pages/notes_page.dart`（`_buildDraggableCard`、`_showNoteContextMenu`）
-- 主窗口只读保护：`lib/pages/editor_page.dart`（`_buildDetachedBanner`、`_isDetached`）
+- 主窗口只读保护：`lib/pages/editor_page.dart`（`_buildDetachedNotice`、`_isDetached`）
 
 **边界情况**：
 - 独立窗口打开期间执行全量同步：远程内容按现有 importNote 规则写入主窗口状态，独立窗口不感知，继续编辑以"最后写入者胜"回写

@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:desktop_multi_window/desktop_multi_window.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -10,6 +13,7 @@ import '../l10n/generated/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../theme/constants.dart';
 import '../ui/core/extensions/build_context_l10n.dart';
+import '../utils/markdown_utils.dart';
 
 /// 独立笔记窗口（仅 Windows 桌面）。
 ///
@@ -63,7 +67,8 @@ class NoteWindowApp extends StatelessWidget {
 }
 
 /// 记事本风格的轻量编辑页：标题 + 正文 + 底部字数。
-/// txt 保持纯文本编辑，Markdown 在同一窗口内提供编辑/预览切换。
+/// txt 与 Markdown 都在同一窗口内提供编辑/预览切换：
+/// txt 预览为可选中纯文本，Markdown 预览为渲染结果，与主编辑器保持一致。
 class NoteWindowEditorPage extends StatefulWidget {
   const NoteWindowEditorPage({
     super.key,
@@ -84,15 +89,18 @@ class NoteWindowEditorPage extends StatefulWidget {
   State<NoteWindowEditorPage> createState() => _NoteWindowEditorPageState();
 }
 
-class _NoteWindowEditorPageState extends State<NoteWindowEditorPage> {
+class _NoteWindowEditorPageState extends State<NoteWindowEditorPage>
+    with WindowListener {
   static const double _windowEditorMaxWidth = 920;
   static const double _windowPreviewMaxWidth = 820;
 
   late final TextEditingController _titleController;
   late final TextEditingController _contentController;
+  late final FocusNode _contentFocusNode;
   bool _mainWindowUnreachable = false;
   bool _isAlwaysOnTop = false;
   bool _isChangingAlwaysOnTop = false;
+  bool _isMaximized = false;
   double _windowOpacity = 1.0;
   late bool _isPreview;
 
@@ -101,17 +109,50 @@ class _NoteWindowEditorPageState extends State<NoteWindowEditorPage> {
   @override
   void initState() {
     super.initState();
+    windowManager.addListener(this);
     _titleController = TextEditingController(text: widget.initialTitle);
     _contentController = TextEditingController(text: widget.initialContent);
-    // Markdown 笔记打开独立窗口时先展示渲染结果，避免第一屏退化成 txt 源码编辑体验。
-    _isPreview = widget.initialFormat == NoteFormat.markdown;
+    _contentFocusNode = FocusNode();
+    // 独立窗口打开时统一先进入预览模式：Markdown 展示渲染结果，txt 展示只读纸张，
+    // 与主编辑器"打开已有笔记默认预览"的行为保持一致，需要修改时再切到编辑态。
+    _isPreview = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_configureNativeWindow());
+    });
   }
 
   @override
   void dispose() {
+    windowManager.removeListener(this);
     _titleController.dispose();
     _contentController.dispose();
+    _contentFocusNode.dispose();
     super.dispose();
+  }
+
+  Future<void> _configureNativeWindow() async {
+    try {
+      await windowManager.ensureInitialized();
+      // 独立笔记窗口已经在内容区显示笔记标题和窗口操作，
+      // 这里隐藏 Windows 原生标题栏，避免顶部多出一条空白系统栏。
+      await windowManager.setTitleBarStyle(
+        TitleBarStyle.hidden,
+        windowButtonVisibility: false,
+      );
+      await windowManager.setTitle('');
+      final isMaximized = await windowManager.isMaximized();
+      if (mounted) {
+        setState(() => _isMaximized = isMaximized);
+      }
+    } on PlatformException catch (error) {
+      if (kDebugMode) {
+        debugPrint('[NoteWindow] configure native window failed: $error');
+      }
+    } on MissingPluginException catch (error) {
+      if (kDebugMode) {
+        debugPrint('[NoteWindow] window plugin unavailable: $error');
+      }
+    }
   }
 
   /// 每次输入都全量回传主窗口，与主窗口编辑器"onChanged 即保存"的行为一致，
@@ -140,11 +181,26 @@ class _NoteWindowEditorPageState extends State<NoteWindowEditorPage> {
     }
   }
 
-  void _onTitleChanged(String value) {
-    // 同步原生窗口标题栏，让任务栏/Alt+Tab 里能认出这篇笔记。
-    widget.windowController
-        .setTitle(value.isEmpty ? context.l10n.untitledNote : value);
+  void _onTitleChanged(String _) {
     _pushUpdate();
+  }
+
+  void _requestContentFocus() {
+    if (!mounted) return;
+    // 预览态没有可编辑的正文 TextField，无需（也无法）聚焦。
+    if (_isPreview) return;
+    _contentFocusNode.requestFocus();
+  }
+
+  void _togglePreviewMode() {
+    setState(() => _isPreview = !_isPreview);
+    if (!_isPreview) {
+      // Windows 子窗口运行在独立 Flutter 引擎中，单靠 autofocus 偶尔拿不到
+      // 可编辑控件焦点；切回编辑态后主动聚焦正文，保证输入法能绑定到 TextField。
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _requestContentFocus();
+      });
+    }
   }
 
   Future<void> _toggleAlwaysOnTop() async {
@@ -168,6 +224,73 @@ class _NoteWindowEditorPageState extends State<NoteWindowEditorPage> {
     } finally {
       if (mounted) setState(() => _isChangingAlwaysOnTop = false);
     }
+  }
+
+  Future<void> _minimizeWindow() async {
+    try {
+      await windowManager.ensureInitialized();
+      await windowManager.minimize();
+    } on PlatformException catch (error) {
+      if (kDebugMode) {
+        debugPrint('[NoteWindow] minimize failed: $error');
+      }
+    } on MissingPluginException catch (error) {
+      if (kDebugMode) {
+        debugPrint('[NoteWindow] minimize plugin unavailable: $error');
+      }
+    }
+  }
+
+  Future<void> _toggleMaximizeWindow() async {
+    try {
+      await windowManager.ensureInitialized();
+      if (_isMaximized) {
+        await windowManager.unmaximize();
+      } else {
+        await windowManager.maximize();
+      }
+      if (mounted) {
+        setState(() => _isMaximized = !_isMaximized);
+      }
+    } on PlatformException catch (error) {
+      if (kDebugMode) {
+        debugPrint('[NoteWindow] toggle maximize failed: $error');
+      }
+    } on MissingPluginException catch (error) {
+      if (kDebugMode) {
+        debugPrint('[NoteWindow] toggle maximize plugin unavailable: $error');
+      }
+    }
+  }
+
+  Future<void> _closeWindow() async {
+    try {
+      await windowManager.ensureInitialized();
+      await windowManager.close();
+    } on PlatformException catch (error) {
+      if (kDebugMode) {
+        debugPrint('[NoteWindow] close failed: $error');
+      }
+    } on MissingPluginException catch (error) {
+      if (kDebugMode) {
+        debugPrint('[NoteWindow] close plugin unavailable: $error');
+      }
+    }
+  }
+
+  @override
+  void onWindowMaximize() {
+    if (mounted) setState(() => _isMaximized = true);
+  }
+
+  @override
+  void onWindowUnmaximize() {
+    if (mounted) setState(() => _isMaximized = false);
+  }
+
+  @override
+  void onWindowRestore() {
+    if (mounted) setState(() => _isMaximized = false);
   }
 
   Future<void> _showOpacityDialog() async {
@@ -253,7 +376,9 @@ class _NoteWindowEditorPageState extends State<NoteWindowEditorPage> {
                 ? (_isPreview
                     ? _buildMarkdownPreview(context)
                     : _buildMarkdownEditor(context))
-                : _buildContentField(context),
+                : (_isPreview
+                    ? _buildTxtPreview(context)
+                    : _buildContentField(context)),
           ),
           _buildFooter(context, wordCount),
         ],
@@ -276,6 +401,16 @@ class _NoteWindowEditorPageState extends State<NoteWindowEditorPage> {
   }
 
   Widget _buildTitleField(BuildContext context) {
+    // txt 无独立标题：标题从正文首行派生、只读展示（仍用于窗口辨识与拖动）；
+    // md 保持可编辑，仅预览态只读。
+    final isTxt = widget.initialFormat == NoteFormat.txt;
+    final isTitleEditable = !isTxt && !_isPreview;
+    final displayTitle = isTxt
+        ? deriveTxtTitle(_contentController.text)
+        : _titleController.text;
+    final titleText =
+        displayTitle.isEmpty ? context.l10n.untitledNote : displayTitle;
+
     return Container(
       decoration: const BoxDecoration(
         color: AppColors.bgTertiary,
@@ -286,39 +421,79 @@ class _NoteWindowEditorPageState extends State<NoteWindowEditorPage> {
           horizontal: AppSpacing.lg, vertical: AppSpacing.md),
       child: Row(
         children: [
-          Expanded(
-            child: TextField(
-              controller: _titleController,
-              style: const TextStyle(
-                fontSize: AppFontSize.xl,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-                height: 1.3,
-              ),
-              decoration: InputDecoration(
-                hintText: context.l10n.enterTitle,
-                hintStyle: const TextStyle(
+          Tooltip(
+            message: context.l10n.noteWindowMove,
+            child: DragToMoveArea(
+              child: Container(
+                width: 28,
+                height: 36,
+                alignment: Alignment.centerLeft,
+                child: const Icon(
+                  Icons.drag_indicator,
+                  size: 18,
                   color: AppColors.textPlaceholder,
-                  fontWeight: FontWeight.w400,
                 ),
-                border: InputBorder.none,
-                filled: false,
-                contentPadding: EdgeInsets.zero,
-                isDense: true,
               ),
-              cursorColor: AppColors.primary,
-              onChanged: _onTitleChanged,
             ),
           ),
-          if (widget.initialFormat == NoteFormat.markdown)
-            Tooltip(
+          const SizedBox(width: AppSpacing.xs),
+          Expanded(
+            child: isTitleEditable
+                ? TextField(
+                    controller: _titleController,
+                    style: const TextStyle(
+                      fontSize: AppFontSize.xl,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                      height: 1.3,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: context.l10n.enterTitle,
+                      hintStyle: const TextStyle(
+                        color: AppColors.textPlaceholder,
+                        fontWeight: FontWeight.w400,
+                      ),
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      disabledBorder: InputBorder.none,
+                      errorBorder: InputBorder.none,
+                      focusedErrorBorder: InputBorder.none,
+                      filled: false,
+                      contentPadding: EdgeInsets.zero,
+                      isDense: true,
+                    ),
+                    cursorColor: AppColors.primary,
+                    onChanged: _onTitleChanged,
+                  )
+                : DragToMoveArea(
+                    child: SizedBox(
+                      height: 36,
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          titleText,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: AppFontSize.xl,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                            height: 1.3,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+          ),
+          Tooltip(
               message: _isPreview ? context.l10n.edit : context.l10n.preview,
               child: IconButton(
                 icon: Icon(
                   _isPreview ? Icons.edit_outlined : Icons.visibility_outlined,
                   size: 20,
                 ),
-                onPressed: () => setState(() => _isPreview = !_isPreview),
+                onPressed: _togglePreviewMode,
                 visualDensity: VisualDensity.compact,
                 style: IconButton.styleFrom(
                   foregroundColor: AppColors.textSecondary,
@@ -372,8 +547,64 @@ class _NoteWindowEditorPageState extends State<NoteWindowEditorPage> {
               ),
             ),
           ),
+          _buildWindowControls(context),
         ],
       ),
+    );
+  }
+
+  Widget _buildWindowControls(BuildContext context) {
+    Widget control({
+      required String tooltip,
+      required IconData icon,
+      required VoidCallback onPressed,
+      bool isClose = false,
+    }) {
+      return Tooltip(
+        message: tooltip,
+        child: IconButton(
+          icon: Icon(icon, size: 18),
+          onPressed: onPressed,
+          visualDensity: VisualDensity.compact,
+          style: IconButton.styleFrom(
+            foregroundColor:
+                isClose ? AppColors.error : AppColors.textSecondary,
+            hoverColor: (isClose ? AppColors.error : AppColors.primaryLight)
+                .withValues(alpha: 0.12),
+            minimumSize: const Size(36, 36),
+            padding: EdgeInsets.zero,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // 原生标题栏隐藏后，窗口管理动作由内容标题行承接，
+    // 保留最小化、最大化/还原和关闭这些桌面端基础操作。
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        control(
+          tooltip: context.l10n.noteWindowMinimize,
+          icon: Icons.minimize,
+          onPressed: () => unawaited(_minimizeWindow()),
+        ),
+        control(
+          tooltip: _isMaximized
+              ? context.l10n.noteWindowRestore
+              : context.l10n.noteWindowMaximize,
+          icon: _isMaximized ? Icons.fullscreen_exit : Icons.fullscreen,
+          onPressed: () => unawaited(_toggleMaximizeWindow()),
+        ),
+        control(
+          tooltip: context.l10n.noteWindowClose,
+          icon: Icons.close,
+          onPressed: () => unawaited(_closeWindow()),
+          isClose: true,
+        ),
+      ],
     );
   }
 
@@ -401,6 +632,7 @@ class _NoteWindowEditorPageState extends State<NoteWindowEditorPage> {
             ),
             child: TextField(
               controller: _contentController,
+              focusNode: _contentFocusNode,
               maxLines: null,
               expands: true,
               autofocus: true,
@@ -414,6 +646,11 @@ class _NoteWindowEditorPageState extends State<NoteWindowEditorPage> {
                 hintText: context.l10n.startWriting,
                 hintStyle: const TextStyle(color: AppColors.textPlaceholder),
                 border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                disabledBorder: InputBorder.none,
+                errorBorder: InputBorder.none,
+                focusedErrorBorder: InputBorder.none,
                 filled: false,
                 contentPadding: EdgeInsets.zero,
               ),
@@ -422,6 +659,79 @@ class _NoteWindowEditorPageState extends State<NoteWindowEditorPage> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  /// txt 预览：与主编辑器一致，用受限宽度的阅读纸张承载可选中的纯文本，
+  /// 与编辑态共用同一份 _contentController，切回编辑不丢内容。
+  Widget _buildTxtPreview(BuildContext context) {
+    const bodyStyle = TextStyle(
+      fontSize: AppFontSize.base,
+      height: 1.85,
+      color: AppColors.textSecondary,
+      fontWeight: FontWeight.w400,
+    );
+
+    return Container(
+      color: AppColors.bgSecondary,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final horizontal = constraints.maxWidth >= AppBreakpoints.tablet
+              ? AppSpacing.xl
+              : AppSpacing.md;
+          final vertical = constraints.maxWidth < AppBreakpoints.mobile
+              ? AppSpacing.md
+              : AppSpacing.lg;
+          final surfacePadding = constraints.maxWidth < AppBreakpoints.mobile
+              ? AppSpacing.lg
+              : AppSpacing.xl;
+          final surfaceHeight = constraints.maxHeight > vertical * 2
+              ? constraints.maxHeight - vertical * 2
+              : 0.0;
+
+          return Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: horizontal,
+              vertical: vertical,
+            ),
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints:
+                    const BoxConstraints(maxWidth: _windowPreviewMaxWidth),
+                child: SizedBox(
+                  height: surfaceHeight,
+                  child: Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.all(surfacePadding),
+                    decoration: BoxDecoration(
+                      color: AppColors.bgTertiary,
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                      border: Border.all(
+                        color: AppColors.borderColor,
+                        width: 0.8,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.035),
+                          blurRadius: 16,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: SingleChildScrollView(
+                      child: SelectableText(
+                        _contentController.text,
+                        style: bodyStyle,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

@@ -72,14 +72,14 @@ flutter run -d chrome
 
 1. 进入**提醒**页面（导航栏闹钟图标）
 2. 点击 **+** 新建提醒，填写标题、时间、重复方式
-3. 到达设定时间后会弹出系统通知「casual 助手」
+3. 到达设定时间后会弹出提醒：Windows 端在屏幕右下角显示独立小弹窗，移动端显示系统通知「casual 助手」
 
 **注意事项**：
 
 - Windows 端提醒依赖应用进程：**应用必须处于运行状态**（可以最小化），完全退出后不会触发通知
+- Windows 端到点时只弹出右下角提醒小窗口，不会把完整主界面从托盘或后台拉出来
 - Android 端提醒使用系统通知调度；请允许通知权限，Android 12+ 若拒绝精确闹钟权限，提醒可能延迟但不应完全丢失
 - Android/MIUI 若通知只进通知栏不弹出，请在系统通知设置里允许「Assistant alarms」渠道的横幅/声音
-- Windows 端请确认系统**设置 → 系统 → 通知**中允许 casual 通知，且未开启"勿扰模式/专注助手"
 - 新建单次提醒默认下一分钟；选择当前分钟会在约 10 秒后触发，更早时间会顺延到明天同一时间
 
 ## 项目结构
@@ -141,7 +141,7 @@ doc/                       # 📚 项目文档
 - **本地存储**: shared_preferences 2.2
 - **网络请求**: http 1.2
 - **Markdown**: flutter_markdown_plus 1.0
-- **本地通知**: flutter_local_notifications 18.0（Android/iOS/Linux）、local_notifier 0.1（Windows）
+- **提醒调度**: flutter_local_notifications 18.0（Android/iOS/Linux）、应用内轮询 + desktop_multi_window 弹窗（Windows）
 - **时区处理**: timezone 0.9 + flutter_timezone 3.0
 
 ## 开发计划

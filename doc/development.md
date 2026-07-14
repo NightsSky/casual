@@ -211,14 +211,14 @@ flutter pub run build_runner build --delete-conflicting-outputs
    - Android 通知渠道使用「Assistant alarms」，需要在系统通知设置里允许该渠道的横幅/声音/锁屏提醒
    - Android 12+ 若拒绝精确闹钟权限，应用会降级为非精确调度，提醒可能延迟但不应完全丢失
    - 部分国产 ROM 需要额外允许后台运行/自启动/电池无限制，否则系统可能拦截后台提醒
-5. **Windows 系统通知设置**：
-   - 「设置 → 系统 → 通知」中总开关和 casual 的通知开关需打开
-   - 「勿扰模式/专注助手」开启时 Toast 会被抑制
-6. **查看调试日志**：debug 模式下 `ReminderService` 会输出关键日志，过滤 `[ReminderService]` 前缀可看到 Timer 启动、触发、通知弹出/异常：
+5. **Windows 主窗口状态**：
+   - Windows 端到点后会优先在屏幕右下角弹出独立提醒小窗口，主窗口保持隐藏、最小化或后台状态
+   - 如果独立小窗口创建失败，会回退到恢复主窗口并展示应用内闹钟弹窗，避免提醒静默丢失
+   - 如果程序已完全退出，应用内 Timer 不再运行，提醒不会触发
+6. **查看调试日志**：debug 模式下 `ReminderService` 会输出关键日志，过滤 `[ReminderService]` 前缀可看到 Timer 启动和触发：
    ```
    [ReminderService] tick timer started
    [ReminderService] firing reminder "标题" (id=xxx) at ...
-   [ReminderService] Windows notification shown: 标题
    ```
 
 **代码位置**: `lib/services/reminder_service.dart`（调度与触发逻辑详见[数据流文档](./data-flow.md)）

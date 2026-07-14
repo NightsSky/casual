@@ -5,7 +5,6 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
-import 'package:local_notifier/local_notifier.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -23,22 +22,21 @@ class ReminderService {
   Timer? _tickTimer;
   final Map<String, DateTime> _nextFireAt = {};
   final Set<String> _firedInThisMinute = {};
+  final StreamController<Reminder> _windowsAlarmController =
+      StreamController<Reminder>.broadcast();
 
   ReminderService(this._storage);
 
-  bool get _useLocalNotifier => !kIsWeb && Platform.isWindows;
+  Stream<Reminder> get windowsAlarmStream => _windowsAlarmController.stream;
+
+  bool get _useWindowsInAppAlarm => !kIsWeb && Platform.isWindows;
 
   Future<void> initialize() async {
     if (_initialized) return;
 
     tz.initializeTimeZones();
 
-    if (_useLocalNotifier) {
-      await localNotifier.setup(
-        appName: 'casual',
-        shortcutPolicy: ShortcutPolicy.requireCreate,
-      );
-    } else {
+    if (!_useWindowsInAppAlarm) {
       // tz.local 默认为 UTC，zonedSchedule 依赖它换算触发时间，
       // 必须先设置为设备时区，否则非 UTC 时区的提醒会整体偏移
       try {
@@ -112,7 +110,7 @@ class ReminderService {
       return;
     }
 
-    if (_useLocalNotifier) {
+    if (_useWindowsInAppAlarm) {
       _scheduleWindowsReminder(reminder);
       return;
     }
@@ -126,7 +124,7 @@ class ReminderService {
     _nextFireAt.remove(reminderId);
     _firedInThisMinute.removeWhere((k) => k.startsWith('$reminderId::'));
 
-    if (!_useLocalNotifier) {
+    if (!_useWindowsInAppAlarm) {
       final id = reminderId.hashCode;
       await _mobilePlugin.cancel(id);
       for (int day = DateTime.monday; day <= DateTime.friday; day++) {
@@ -148,7 +146,7 @@ class ReminderService {
     _tickTimer?.cancel();
     _tickTimer = null;
 
-    if (!_useLocalNotifier) {
+    if (!_useWindowsInAppAlarm) {
       await _mobilePlugin.cancelAll();
     }
   }
@@ -216,7 +214,9 @@ class ReminderService {
         debugPrint(
             '[ReminderService] firing reminder "${reminder.title}" (id=$id) at $now');
       }
-      await _showWindowsNotification(reminder);
+      // Windows 桌面端使用应用内闹钟弹窗：轮询层只负责发事件，
+      // 由 UI 层恢复主窗口并展示可自定义内容的弹窗。
+      _windowsAlarmController.add(reminder);
 
       // 时刻型提醒粒度为分钟，+1 分钟避开同一分钟重复命中；
       // interval 型直接从本次触发点推进（+1 分钟会让 1 分钟间隔跳拍）
@@ -249,22 +249,10 @@ class ReminderService {
     }
   }
 
-  Future<void> _showWindowsNotification(Reminder reminder) async {
-    try {
-      final notification = LocalNotification(
-        title: 'casual 助手',
-        body: reminder.title,
-      );
-      await notification.show();
-      if (kDebugMode) {
-        debugPrint(
-            '[ReminderService] Windows notification shown: ${reminder.title}');
-      }
-    } catch (e, st) {
-      if (kDebugMode) {
-        debugPrint('[ReminderService] Windows notification error: $e\n$st');
-      }
-    }
+  void dispose() {
+    _tickTimer?.cancel();
+    _tickTimer = null;
+    _windowsAlarmController.close();
   }
 
   Future<void> _scheduleMobileReminder(Reminder reminder) async {

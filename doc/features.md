@@ -40,6 +40,9 @@
 - 字数统计
 - 单条笔记同步到远程
 - 空笔记自动清理（dispose 时或返回时）
+- **标题处理按格式区分**：
+  - **Markdown**：保留独立标题输入框，标题由用户显式填写
+  - **txt**：**不提供标题输入框**，标题从正文首行派生（首个非空行、截断至 80 字符，见 `deriveTxtTitle`）。派生标题仅用于列表卡片显示与同步文件名（`allocatePath`）；导航栏顶部与列表卡片在标题为空（正文全空）时回退显示「无标题」文案
 
 **关键代码位置**：
 - 自动保存：`lib/pages/editor_page.dart:79-91` (`_saveNote`)
@@ -114,7 +117,7 @@
 - 新建/编辑提醒（对话框：标题 + 时间选择器 + 重复方式下拉框；选择「按间隔」时改为小时/分钟间隔选择器）
 - 开关单条提醒（Switch）
 - 删除提醒（二次确认）
-- 到达设定时间后弹出系统通知，标题为「casual 助手」
+- 到达设定时间后触发提醒：Windows 桌面端在屏幕右下角弹出独立提醒小窗口；Android/iOS/Linux 走系统通知
 
 **重复方式**（`RepeatType`，见 `lib/domain/models/reminder.dart:3-11`）：
 
@@ -138,17 +141,19 @@
 
 ### 调度实现 (`lib/services/reminder_service.dart`)
 
-通知调度按平台走两条完全不同的路径（分支判断见 `lib/services/reminder_service.dart:29`）：
+通知调度按平台走两条完全不同的路径（分支判断见 `lib/services/reminder_service.dart`）：
 
-**Windows 桌面端**（`local_notifier` + 应用内轮询）：
+**Windows 桌面端**（应用内轮询 + 独立提醒小窗口）：
 - 不使用系统级定时调度，而是维护一个**应用内 5 秒周期的轮询 Timer**
-- 每个启用的提醒计算下次触发时间存入内存表，轮询到期后调用 `local_notifier` 弹出系统 Toast
+- 每个启用的提醒计算下次触发时间存入内存表，轮询到期后通过 `windowsAlarmStream` 向 UI 发出提醒事件
+- `ReminderAlarmHost` 监听提醒事件后优先通过 `ReminderAlarmWindowService` 创建 `desktop_multi_window` 子窗口，只展示右下角提醒卡片，不恢复完整主窗口；子窗口不可用时回退到主窗口右下角 Dialog，避免提醒静默丢失
 - `interval` 类型以 `time` 字段为计时锚点，触发点为「锚点 + N × 间隔」；应用重启后延续原节奏，不会立即补发
 - 关键代码：
-  - 调度入口：`lib/services/reminder_service.dart:166-184`（`_scheduleWindowsReminder`、`_ensureTickTimer`）
-  - 轮询触发：`lib/services/reminder_service.dart:186-250`（`_onTick`）
-  - 弹出通知：`lib/services/reminder_service.dart:252-268`（`_showWindowsNotification`）
-  - 下次触发时间计算：`lib/services/reminder_service.dart:399-461`（`_computeNextFire`）
+  - 调度入口：`lib/services/reminder_service.dart`（`_scheduleWindowsReminder`、`_ensureTickTimer`）
+  - 轮询触发：`lib/services/reminder_service.dart`（`_onTick`）
+  - 弹窗宿主：`lib/widgets/reminder_alarm_host.dart`（`ReminderAlarmHost`）
+  - 独立提醒窗口：`lib/services/reminder_alarm_window_service.dart`、`lib/pages/reminder_alarm_window_page.dart`
+  - 下次触发时间计算：`lib/services/reminder_service.dart`（`_computeNextFire`）
 
 **Android / iOS / Linux**（`flutter_local_notifications` 系统调度）：
 - 初始化时通过 `flutter_timezone` 获取设备时区并调用 `tz.setLocalLocation()`（否则 `tz.local` 默认 UTC，非 UTC 时区的触发时间会偏移）
@@ -168,12 +173,11 @@
 
 ### 已知限制与注意事项
 
-1. **应用必须保持运行**：Windows 端提醒完全依赖应用内 Timer，应用退出后不会触发任何通知；最小化不影响。移动端由系统调度，但应用被强杀后部分 ROM 可能不触发。
+1. **应用必须保持运行**：Windows 端提醒完全依赖应用内 Timer，应用退出后不会触发；最小化到系统托盘或主窗口位于后台时，到点后只在屏幕右下角弹出独立提醒小窗口。移动端由系统调度，但应用被强杀后部分 ROM 可能不触发。
 2. **单次提醒的过期处理**：新建提醒对话框默认选中下一分钟；保存或重新启用 `RepeatType.none` 时，若选择的是当前分钟，会调度到当前时间后 10 秒，便于马上验证提醒；若所选时分早于当前分钟，则自动顺延到明天同一时间（`Reminder.rescheduledIfExpired()`，见 `lib/domain/models/reminder.dart`）。历史数据中已过期且一直未操作过的单次提醒仍不会触发，重新保存或开关一次即可。
 3. **间隔提醒的计时起点**：保存或重新启用 `RepeatType.interval` 的提醒时，计时锚点重置为当前时刻（同为 `rescheduledIfExpired()` 处理）。Windows 端应用重启后按原锚点延续节奏；移动端重启会重新注册 `periodicallyShowWithDuration`，周期从重启时刻重新计（平台差异）。iOS 系统要求周期不低于 60 秒，界面已限制最小间隔为 1 分钟。
 4. **Android 通知受系统权限影响**：Android 13+ 需要允许通知权限；Android 12+ 若未授予精确闹钟权限，提醒会按系统允许的非精确模式触发，可能有轻微延迟。MIUI 等系统还可能按渠道单独控制横幅/声音，需要允许「Assistant alarms」渠道的弹出和铃声。
-5. **Windows 通知受系统设置影响**：需要在 Windows「设置 → 系统 → 通知」中允许 casual 通知；「勿扰模式/专注助手」开启时 Toast 会被抑制。
-6. **`custom` 重复类型未实现**：调度时直接返回 `null`（不调度），界面未提供该选项。
+5. **`custom` 重复类型未实现**：调度时直接返回 `null`（不调度），界面未提供该选项。
 
 ## 5. 设置管理
 
@@ -232,29 +236,42 @@
 ### 交互入口 (`lib/pages/notes_page.dart`)
 
 - **拖出**：在笔记列表按住 txt / Markdown 笔记卡片拖动，拖离列表区域（右侧编辑栏或应用窗口之外）松手即弹出独立窗口；在列表区域内松手视为取消（列表整体是 `DragTarget`，见 `_buildNoteList` / `_buildDraggableCard`）
-- **右键菜单**：右键点击 txt / Markdown 笔记卡片 →「在新窗口打开」（`_showNoteContextMenu`）
-- **去重**：同一笔记重复拖出时聚焦已有窗口，不会重复创建
+- **右键菜单**：右键点击 txt / Markdown 笔记卡片 →「在新窗口打开」；txt 笔记额外提供「打开为便签标签」入口（`_showNoteContextMenu`）
+- **去重**：同一笔记重复拖出时聚焦已有窗口，不会重复创建（标签模式与普通独立窗口共用同一登记表，同一笔记二者互斥）
 - 已拖出的笔记卡片标题旁显示 `open_in_new` 角标
 
 ### 独立窗口 (`lib/pages/note_window_page.dart`)
 
-记事本风格的轻量编辑页：标题输入 + 正文 + 底部字数统计。txt 保持纯文本编辑；Markdown 笔记打开时默认显示渲染预览，在标题栏右侧可切换编辑/预览；标题栏图钉按钮可把当前独立窗口置顶在桌面，再次点击取消置顶；透明度按钮可打开滑块，把当前窗口调整为 35% - 100% 不透明度，关闭窗口后恢复默认。切到编辑后显示紧凑 Markdown 工具栏（标题、加粗、斜体、引用、列表、任务、代码块、链接、图片、分隔线），预览内容可选中复制。窗口可自由移动、调整大小，窗口标题栏实时跟随笔记标题。
+记事本风格的轻量编辑页：标题栏 + 正文 + 底部字数统计。标题栏右侧对 txt 与 Markdown 均提供编辑/预览切换按钮，且两种格式打开时**默认进入预览模式**（与主编辑器"打开已有笔记默认预览"一致），需要修改时再切到编辑态。txt 保持纯文本编辑，**无独立标题输入框**——标题栏只读展示从正文首行派生的标题（空内容回退「无标题」文案），用于窗口辨识与拖动；txt 预览态在受限宽度阅读纸张上以可选中纯文本渲染正文（与主编辑器一致）。Markdown 预览态展示渲染结果，预览态标题只读；切到编辑后标题与正文才可修改，并显示紧凑 Markdown 工具栏（标题、加粗、斜体、引用、列表、任务、代码块、链接、图片、分隔线）。独立窗口隐藏原生 Windows 标题栏，笔记标题、拖动手柄、置顶、透明度、最小化、最大化/还原和关闭操作都放在内容标题行内；透明度按钮可打开滑块，把当前窗口调整为 35% - 100% 不透明度，关闭窗口后恢复默认。预览内容可选中复制。窗口可通过标题行拖动并自由调整大小。
+
+### 标签模式窗口 (`lib/pages/note_tag_window_page.dart`)
+
+> 平台限制：仅 Windows 桌面端、**仅 txt** 笔记（`NoteWindowService.canUseTagMode`）。
+
+标签模式是独立窗口的优化形态，模拟"贴边便签"：
+
+- **入口**：右键 txt 笔记卡片 →「打开为便签标签」（`openNoteWindow(note, asTag: true)`）
+- **折叠胶囊态**：默认呈现为贴屏幕右侧、纵向居中的圆角胶囊（初始约 240×52），只显示正文首行（`deriveTxtTitle`，空内容回退「无标题」）；胶囊左侧有拖动手柄（`DragToMoveArea`），可自由移动
+- **展开态**：点击胶囊在原窗口内展开为可编辑的完整正文（约 300×420），顶部保留拖动手柄、折叠、关闭；展开/折叠时窗口锚定右边缘缩放，贴边视觉位置不跳动
+- **贴边常驻**：便签窗口常置顶（`setAlwaysOnTop`）且不占任务栏（`setSkipTaskbar`），切到其他应用也不会被遮住，符合桌面便签直觉；关闭走展开态右上角的关闭按钮
+- **数据链路**：与普通独立窗口完全一致——无边框透明窗口（`window_manager.setAsFrameless`），每次输入经 `noteWindow.update` IPC 回传主窗口持久化，绝不直写本地存储；txt 标题仍由主窗口按首行派生
+- **去重**：与普通独立窗口共用 `_noteWindows` 登记表，同一笔记已打开时聚焦既有窗口
 
 ### 多窗口架构 (`lib/services/note_window_service.dart`)
 
 基于 `desktop_multi_window` 实现。**每个独立窗口是一个独立的 Flutter 引擎 + 独立 isolate**，与主窗口不共享任何内存状态，因此采用"主窗口单一数据权威"架构：
 
-- 子窗口启动参数携带笔记初始内容与格式（noteId/title/content/format），入口分流见 `lib/main.dart`（`main` 函数检测 `multi_window` 参数）
+- 子窗口启动参数携带笔记初始内容与格式（noteId/title/content/format）及 `mode`（`window` 普通独立窗口 / `tag` 标签胶囊窗口），入口分流见 `lib/main.dart`（`main` 函数检测 `multi_window` 参数后按 `mode` 分发到 `NoteWindowApp` 或 `NoteTagWindowApp`）
 - 子窗口每次输入都通过窗口间 method channel（`noteWindow.update`）实时回传主窗口，由主窗口 `notesProvider.updateNote()` 统一更新与持久化；**子窗口自身绝不读写 SharedPreferences**（两引擎缓存独立，直接写会整表覆盖）
 - 子窗口被关闭时 Dart 侧无回调，主窗口以 2 秒周期轮询 `getAllSubWindowIds()` 对账（`_reconcile`），同时负责关闭"笔记已被删除"的孤儿窗口
-- 原生侧：`windows/runner/main.cpp` 通过 `DesktopMultiWindowSetWindowCreatedCallback` 只为子窗口引擎额外注册 `window_manager`，用于独立窗口桌面置顶与透明度调整；不能调用完整 `RegisterPlugins()`，否则会破坏子窗口回传主窗口的事件通道
+- 原生侧：`windows/runner/main.cpp` 通过 `DesktopMultiWindowSetWindowCreatedCallback` 只为子窗口引擎额外注册 `window_manager`，用于独立窗口隐藏原生标题栏、窗口拖动/控制、桌面置顶与透明度调整；不能调用完整 `RegisterPlugins()`，否则会破坏子窗口回传主窗口的事件通道
 
 ### 并发编辑保护 (`lib/pages/editor_page.dart`)
 
 笔记拖出期间，主窗口编辑器若打开同一笔记会进入**只读模式**：
 
-- 顶部显示横幅"此笔记正在独立窗口中编辑"，附「聚焦窗口」按钮（`_buildDetachedBanner`）
-- 独立窗口的编辑内容经 provider 回流后实时镜像到主窗口编辑器（`ref.listen(notesProvider)`）
+- 主窗口不再显示标题输入区、标签、预览、正文编辑器和页脚，只显示"此笔记正在独立窗口中编辑，此处为只读"以及「聚焦窗口」按钮（`_buildDetachedNotice`）
+- 独立窗口的编辑内容经 provider 回流后只更新主窗口缓存，主窗口不展示正文内容，避免用户在两处同时阅读/编辑同一笔记产生误判
 - 只读期间 `_saveNote` / 空笔记清理（`_shouldDiscard`）均被跳过，防止旧快照覆盖或误删
 - 独立窗口关闭后（轮询检测，最多约 2 秒延迟），主窗口编辑器自动加载最新内容并解除只读
 
@@ -264,7 +281,7 @@
 
 ### 已知限制与注意事项
 
-1. **Markdown 独立窗口默认预览**：Markdown 笔记拖出后先显示渲染效果，切到编辑态后提供紧凑工具栏；更完整的笔记操作菜单仍保留在主编辑页。
+1. **独立窗口默认预览**：txt 与 Markdown 笔记拖出后都先进入预览态（txt 为可选中纯文本纸张，Markdown 为渲染结果），与主编辑器"打开已有笔记默认预览"一致；切到编辑态后 Markdown 提供紧凑工具栏；更完整的笔记操作菜单仍保留在主编辑页。
 2. **主窗口是数据通道**：独立窗口的保存依赖主窗口 isolate 存活。主窗口最小化到系统托盘不受影响（isolate 仍在运行）；通过托盘「退出」则整个进程结束，所有独立窗口随之关闭——已输入内容因实时回传不会丢失。
 3. **远程同步覆盖**：独立窗口编辑期间执行全量同步（importNote），若远程版本更新会按现有冲突规则覆盖或标记冲突，独立窗口内不感知，继续编辑会以"最后写入者胜"回写。
 4. **窗口位置不持久化**：独立窗口按打开顺序阶梯错开排列，应用重启后不恢复上次位置与大小。

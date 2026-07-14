@@ -110,7 +110,7 @@ lib/
 - **一个窗口一个引擎**：每个独立窗口运行独立的 Flutter 引擎与 Dart isolate，与主窗口不共享内存状态（Riverpod 状态、SharedPreferences 缓存均各自独立）
 - **入口分流**：子引擎以固定参数 `['multi_window', windowId, jsonArgs]` 重新执行 `main()`，`lib/main.dart` 检测到该参数后只运行轻量编辑器（`NoteWindowApp`），不初始化托盘/路由/主窗口服务
 - **主窗口单一数据权威**：子窗口通过窗口间 method channel 把编辑实时回传主窗口，统一走 `notesProvider` 更新与持久化；子窗口不直接读写存储，规避多引擎缓存互相覆盖
-- **原生集成**：`windows/runner/main.cpp` 通过 `DesktopMultiWindowSetWindowCreatedCallback` 仅为子窗口额外注册 `window_manager`，用于独立窗口桌面置顶与透明度调整；子窗口不能调用完整 `RegisterPlugins()`，以免破坏回传主窗口的多窗口事件通道
+- **原生集成**：`windows/runner/main.cpp` 通过 `DesktopMultiWindowSetWindowCreatedCallback` 仅为子窗口额外注册 `window_manager`，用于独立窗口隐藏原生标题栏、应用内窗口控制、桌面置顶与透明度调整；子窗口不能调用完整 `RegisterPlugins()`，以免破坏回传主窗口的多窗口事件通道
 
 详见[核心功能 - 独立笔记窗口](./features.md#7-独立笔记窗口仅-windows-桌面端)与[数据流](./data-flow.md)。
 

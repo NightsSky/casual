@@ -14,19 +14,23 @@ import 'layout/app_shell.dart';
 import 'l10n/generated/app_localizations.dart';
 import 'domain/models/note.dart';
 import 'pages/editor_page.dart';
+import 'pages/note_tag_window_page.dart';
 import 'pages/note_window_page.dart';
 import 'pages/notes_page.dart';
 import 'pages/reminder_page.dart';
+import 'pages/reminder_alarm_window_page.dart';
 import 'pages/repo_page.dart';
 import 'pages/settings_page.dart';
 import 'pages/token_help_page.dart';
 import 'providers/git_provider.dart';
 import 'providers/notes_provider.dart';
 import 'providers/reminder_provider.dart';
+import 'services/reminder_alarm_window_service.dart';
 import 'services/window_service.dart';
 import 'theme/app_theme.dart';
 import 'theme/constants.dart';
 import 'ui/core/extensions/build_context_l10n.dart';
+import 'widgets/reminder_alarm_host.dart';
 import 'widgets/window_close_handler.dart';
 
 Future<void> main(List<String> args) async {
@@ -35,7 +39,7 @@ Future<void> main(List<String> args) async {
   // desktop_multi_window 子窗口入口（仅 Windows 桌面）：
   // 子引擎以固定参数 ['multi_window', windowId, jsonArgs] 重新执行 main。
   // 必须在主窗口专属初始化（托盘、关闭按钮接管）之前分流，
-  // 子窗口只运行轻量笔记编辑器，见 pages/note_window_page.dart。
+  // 子窗口只运行轻量笔记编辑器或提醒弹窗，避免接管主窗口托盘/关闭逻辑。
   if (!kIsWeb &&
       Platform.isWindows &&
       args.isNotEmpty &&
@@ -44,6 +48,19 @@ Future<void> main(List<String> args) async {
     final arguments = args.length > 2 && args[2].isNotEmpty
         ? Map<String, dynamic>.from(jsonDecode(args[2]) as Map)
         : <String, dynamic>{};
+    if (ReminderAlarmWindowService.isReminderAlarmArguments(arguments)) {
+      runApp(ReminderAlarmWindowApp(arguments: arguments));
+      return;
+    }
+    // 标签模式子窗口：txt 笔记的胶囊便签形态，与普通独立窗口共用回写链路，
+    // 仅初始 UI 形态不同，据 mode 参数分流到不同页面。
+    if (arguments['mode'] == 'tag') {
+      runApp(NoteTagWindowApp(
+        windowController: WindowController.fromWindowId(windowId),
+        arguments: arguments,
+      ));
+      return;
+    }
     runApp(NoteWindowApp(
       windowController: WindowController.fromWindowId(windowId),
       arguments: arguments,
@@ -69,12 +86,14 @@ final GoRouter _router = GoRouter(
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) {
         final currentPage = _pageForUri(state.uri);
-        return WindowCloseHandler(
-          child: AppBootstrapGate(
-            child: AppShell(
-              currentPage: currentPage,
-              onNavigate: (page) => _goToBranch(page, navigationShell),
-              child: navigationShell,
+        return ReminderAlarmHost(
+          child: WindowCloseHandler(
+            child: AppBootstrapGate(
+              child: AppShell(
+                currentPage: currentPage,
+                onNavigate: (page) => _goToBranch(page, navigationShell),
+                child: navigationShell,
+              ),
             ),
           ),
         );
@@ -342,53 +361,54 @@ class _MobileNotesWithFabState extends ConsumerState<_MobileNotesWithFab>
           child: IgnorePointer(
             ignoring: !_isExpanded,
             child: AnimatedBuilder(
-            animation: _expandAnimation,
-            builder: (context, child) {
-              return Transform.scale(
-                scale: _expandAnimation.value,
-                alignment: Alignment.bottomRight,
-                child: Opacity(
-                  opacity: _expandAnimation.value,
-                  child: child,
+              animation: _expandAnimation,
+              builder: (context, child) {
+                return Transform.scale(
+                  scale: _expandAnimation.value,
+                  alignment: Alignment.bottomRight,
+                  child: Opacity(
+                    opacity: _expandAnimation.value,
+                    child: child,
+                  ),
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.sm,
                 ),
-              );
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
-                vertical: AppSpacing.sm,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardTheme.color,
+                  borderRadius: BorderRadius.circular(AppRadius.xl),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _FormatOption(
+                      label: 'TXT',
+                      icon: Icons.description_outlined,
+                      isSelected: _selectedFormat == NoteFormat.txt,
+                      onTap: () =>
+                          setState(() => _selectedFormat = NoteFormat.txt),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    _FormatOption(
+                      label: 'Markdown',
+                      icon: Icons.code,
+                      isSelected: _selectedFormat == NoteFormat.markdown,
+                      onTap: () =>
+                          setState(() => _selectedFormat = NoteFormat.markdown),
+                    ),
+                  ],
+                ),
               ),
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardTheme.color,
-                borderRadius: BorderRadius.circular(AppRadius.xl),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _FormatOption(
-                    label: 'TXT',
-                    icon: Icons.description_outlined,
-                    isSelected: _selectedFormat == NoteFormat.txt,
-                    onTap: () => setState(() => _selectedFormat = NoteFormat.txt),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  _FormatOption(
-                    label: 'Markdown',
-                    icon: Icons.code,
-                    isSelected: _selectedFormat == NoteFormat.markdown,
-                    onTap: () =>
-                        setState(() => _selectedFormat = NoteFormat.markdown),
-                  ),
-                ],
-              ),
-            ),
             ),
           ),
         ),
