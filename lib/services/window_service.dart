@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/foundation.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
@@ -36,7 +37,8 @@ class WindowService with TrayListener {
   static const _trayMenuKeyShow = 'show_window';
   static const _trayMenuKeyExit = 'exit_app';
   static const _pluginCallTimeout = Duration(milliseconds: 100);
-  static const _processExitDeadline = Duration(milliseconds: 350);
+  // 子窗口关闭请求需要先进入 Windows 消息队列；保留短暂兜底时间，避免插件异常时进程滞留。
+  static const _processExitDeadline = Duration(milliseconds: 500);
 
   static bool get isDesktopWindows => !kIsWeb && Platform.isWindows;
 
@@ -105,11 +107,12 @@ class WindowService with TrayListener {
       exit(0);
     }
 
-    // 用户已经明确选择退出，窗口/托盘插件调用只作为退出前清理；
-    // Windows 端 window_manager.destroy() 只是投递 PostQuitMessage，
-    // 不能把进程退出完全依赖在消息循环响应上，否则会出现主界面长时间停留。
+    // 退出前先关闭所有 desktop_multi_window 子窗口。txt 标签窗口常置顶且不出现在任务栏，
+    // 若只销毁主窗口，子窗口可能继续占用 Flutter 引擎或留下悬浮窗口，导致退出不完整。
+    // 关闭请求会先进入同一 Windows 消息队列，再投递主窗口的退出消息，保证子窗口先完成销毁。
     Timer(_processExitDeadline, terminateProcess);
     unawaited(() async {
+      await _closeAllSubWindows();
       await _waitForPluginCall(
         windowManager.setPreventClose(false),
         operation: 'allow window close',
@@ -122,10 +125,40 @@ class WindowService with TrayListener {
         windowManager.destroy(),
         operation: 'post native quit message',
       );
-      terminateProcess();
     }());
 
     return Future.value();
+  }
+
+  /// 关闭当前进程创建的全部子窗口（笔记独立窗口、txt 标签和提醒弹窗）。
+  ///
+  /// 这里不依赖各业务服务自身的窗口登记表：提醒弹窗与标签窗口均由同一个多窗口
+  /// 插件创建，直接读取原生注册表可覆盖所有窗口类型，也能处理登记尚未同步的窗口。
+  Future<void> _closeAllSubWindows() async {
+    try {
+      final windowIds = await DesktopMultiWindow.getAllSubWindowIds()
+          .timeout(_pluginCallTimeout);
+      await Future.wait([
+        for (final windowId in windowIds)
+          _waitForPluginCall(
+            WindowController.fromWindowId(windowId).close(),
+            operation: 'close sub window $windowId',
+          ),
+      ]);
+    } on TimeoutException {
+      if (kDebugMode) {
+        debugPrint(
+          '[WindowService] enumerate sub windows timed out after '
+          '$_pluginCallTimeout',
+        );
+      }
+    } catch (error, stackTrace) {
+      if (kDebugMode) {
+        debugPrint(
+          '[WindowService] enumerate sub windows failed: $error\n$stackTrace',
+        );
+      }
+    }
   }
 
   Future<bool> _waitForPluginCall(
