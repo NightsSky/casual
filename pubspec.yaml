@@ -1,7 +1,7 @@
 name: casual
 description: 基于 GitHub/Gitee 的笔记本应用 - Flutter 版
 publish_to: 'none'
-version: 0.1.0
+version: 0.2.0
 
 environment:
   sdk: '>=3.5.0 <4.0.0'
@@ -36,6 +36,12 @@ dependencies:
   screen_retriever: ^0.2.1
   # 多窗口支持（仅 Windows/macOS/Linux 桌面生效，移动端构建自动忽略）
   desktop_multi_window: ^0.2.0
+  package_info_plus: ^10.2.0
+  path_provider: ^2.1.6
+  open_filex: ^4.7.0
+  url_launcher: ^6.3.2
+  # 使用系统文件选择器打开电脑中的 Markdown 文件（Windows 为完整原路径读写）。
+  file_selector: ^1.0.3
 
 dev_dependencies:
   flutter_test:

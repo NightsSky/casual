@@ -122,6 +122,12 @@ abstract class AppLocalizations {
   /// **'Repository'**
   String get repository;
 
+  /// No description provided for @plan.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan'**
+  String get plan;
+
   /// No description provided for @settings.
   ///
   /// In en, this message translates to:
@@ -163,6 +169,120 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Preview'**
   String get preview;
+
+  /// No description provided for @openMarkdownFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Markdown file'**
+  String get openMarkdownFile;
+
+  /// No description provided for @markdownEditOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit only'**
+  String get markdownEditOnly;
+
+  /// No description provided for @markdownSplitView.
+  ///
+  /// In en, this message translates to:
+  /// **'Split edit and preview'**
+  String get markdownSplitView;
+
+  /// No description provided for @markdownPreviewOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview only'**
+  String get markdownPreviewOnly;
+
+  /// No description provided for @showMarkdownToolbar.
+  ///
+  /// In en, this message translates to:
+  /// **'Show formatting toolbar'**
+  String get showMarkdownToolbar;
+
+  /// No description provided for @hideMarkdownToolbar.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide formatting toolbar'**
+  String get hideMarkdownToolbar;
+
+  /// No description provided for @enterMarkdownFocus.
+  ///
+  /// In en, this message translates to:
+  /// **'Full-screen edit/preview'**
+  String get enterMarkdownFocus;
+
+  /// No description provided for @exitMarkdownFocus.
+  ///
+  /// In en, this message translates to:
+  /// **'Exit full-screen edit/preview'**
+  String get exitMarkdownFocus;
+
+  /// No description provided for @saveMarkdownFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Save (Ctrl+S)'**
+  String get saveMarkdownFile;
+
+  /// No description provided for @externalMarkdownReadOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'External Markdown files are opened read-only on this platform. Edit and save the original file on Windows desktop.'**
+  String get externalMarkdownReadOnly;
+
+  /// No description provided for @externalMarkdownContentHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Markdown content'**
+  String get externalMarkdownContentHint;
+
+  /// No description provided for @externalMarkdownSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved to the original Markdown file'**
+  String get externalMarkdownSaved;
+
+  /// No description provided for @externalMarkdownSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save the Markdown file: {error}'**
+  String externalMarkdownSaveFailed(String error);
+
+  /// No description provided for @externalMarkdownOpenFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the Markdown file: {error}'**
+  String externalMarkdownOpenFailed(String error);
+
+  /// No description provided for @discardUnsavedChangesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard unsaved changes?'**
+  String get discardUnsavedChangesTitle;
+
+  /// No description provided for @discardExternalMarkdownMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This external Markdown file has not been saved to your computer.'**
+  String get discardExternalMarkdownMessage;
+
+  /// No description provided for @continueEditing.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep editing'**
+  String get continueEditing;
+
+  /// No description provided for @discardChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard changes'**
+  String get discardChanges;
+
+  /// No description provided for @missingExternalMarkdown.
+  ///
+  /// In en, this message translates to:
+  /// **'No Markdown file was selected'**
+  String get missingExternalMarkdown;
 
   /// No description provided for @syncToRemote.
   ///
@@ -374,6 +494,12 @@ abstract class AppLocalizations {
   /// **'Repository'**
   String get repositoryManagement;
 
+  /// No description provided for @repositoryManagementDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync notes and review sync stats and logs'**
+  String get repositoryManagementDescription;
+
   /// No description provided for @notConnected.
   ///
   /// In en, this message translates to:
@@ -566,6 +692,12 @@ abstract class AppLocalizations {
   /// **'Git platform'**
   String get gitPlatformConfig;
 
+  /// No description provided for @gitPlatformConfigDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure GitHub or Gitee connection details'**
+  String get gitPlatformConfigDescription;
+
   /// No description provided for @platform.
   ///
   /// In en, this message translates to:
@@ -691,6 +823,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Version'**
   String get version;
+
+  /// No description provided for @checkForUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Check for updates'**
+  String get checkForUpdate;
+
+  /// No description provided for @checkingForUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking for updates...'**
+  String get checkingForUpdate;
+
+  /// No description provided for @updateAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'New version available'**
+  String get updateAvailable;
+
+  /// No description provided for @upToDate.
+  ///
+  /// In en, this message translates to:
+  /// **'You are on the latest version'**
+  String get upToDate;
+
+  /// No description provided for @updateNewVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Version {version}'**
+  String updateNewVersion(String version);
+
+  /// No description provided for @updateCurrentVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Current version {version}'**
+  String updateCurrentVersion(String version);
+
+  /// No description provided for @updateReleaseNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Release notes'**
+  String get updateReleaseNotes;
+
+  /// No description provided for @updateDownloadInstall.
+  ///
+  /// In en, this message translates to:
+  /// **'Download & install'**
+  String get updateDownloadInstall;
+
+  /// No description provided for @updateDownloading.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading...'**
+  String get updateDownloading;
+
+  /// No description provided for @updateInstallNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Install now'**
+  String get updateInstallNow;
+
+  /// No description provided for @updateOpenReleasePage.
+  ///
+  /// In en, this message translates to:
+  /// **'Open release page'**
+  String get updateOpenReleasePage;
+
+  /// No description provided for @updateCheckFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Update check failed'**
+  String get updateCheckFailed;
+
+  /// No description provided for @updateLater.
+  ///
+  /// In en, this message translates to:
+  /// **'Later'**
+  String get updateLater;
+
+  /// No description provided for @updateWindowsZipHint.
+  ///
+  /// In en, this message translates to:
+  /// **'After download, extract the archive and replace the existing app files.'**
+  String get updateWindowsZipHint;
 
   /// No description provided for @clearAllData.
   ///
@@ -875,7 +1091,7 @@ abstract class AppLocalizations {
   /// No description provided for @tokenPasteTip.
   ///
   /// In en, this message translates to:
-  /// **'After copying it, return to Settings, paste it into Access Token, save the configuration, and test the connection.'**
+  /// **'After copying it, return to Git platform, paste it into Access Token, save the configuration, and test the connection.'**
   String get tokenPasteTip;
 
   /// No description provided for @reminder.
@@ -1261,6 +1477,558 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Collapse to tag'**
   String get noteTagCollapse;
+
+  /// No description provided for @planPageSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Break one goal into ordered steps and move it forward on a clear timeline.'**
+  String get planPageSubtitle;
+
+  /// No description provided for @createPlan.
+  ///
+  /// In en, this message translates to:
+  /// **'New plan'**
+  String get createPlan;
+
+  /// No description provided for @planFilterActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get planFilterActive;
+
+  /// No description provided for @planFilterOverdue.
+  ///
+  /// In en, this message translates to:
+  /// **'Overdue'**
+  String get planFilterOverdue;
+
+  /// No description provided for @planFilterCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed'**
+  String get planFilterCompleted;
+
+  /// No description provided for @planFilterTerminated.
+  ///
+  /// In en, this message translates to:
+  /// **'Terminated'**
+  String get planFilterTerminated;
+
+  /// No description provided for @planNoPlansYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No plans yet'**
+  String get planNoPlansYet;
+
+  /// No description provided for @planCreateFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Create a plan and start recording its progress.'**
+  String get planCreateFirst;
+
+  /// No description provided for @planSelectPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a plan to view its timeline'**
+  String get planSelectPrompt;
+
+  /// No description provided for @planTitleLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan title'**
+  String get planTitleLabel;
+
+  /// No description provided for @planTitleHint.
+  ///
+  /// In en, this message translates to:
+  /// **'For example: Release casual 1.0'**
+  String get planTitleHint;
+
+  /// No description provided for @planGoalLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Goal'**
+  String get planGoalLabel;
+
+  /// No description provided for @planGoalHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Describe the concrete result you want to achieve'**
+  String get planGoalHint;
+
+  /// No description provided for @planStartAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Start time'**
+  String get planStartAt;
+
+  /// No description provided for @planDeadline.
+  ///
+  /// In en, this message translates to:
+  /// **'Deadline'**
+  String get planDeadline;
+
+  /// No description provided for @planReminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Deadline reminder'**
+  String get planReminder;
+
+  /// No description provided for @planReminderOff.
+  ///
+  /// In en, this message translates to:
+  /// **'No reminder'**
+  String get planReminderOff;
+
+  /// No description provided for @planReminderAtDeadline.
+  ///
+  /// In en, this message translates to:
+  /// **'At deadline'**
+  String get planReminderAtDeadline;
+
+  /// No description provided for @planReminderOneHourBefore.
+  ///
+  /// In en, this message translates to:
+  /// **'1 hour before'**
+  String get planReminderOneHourBefore;
+
+  /// No description provided for @planReminderOneDayBefore.
+  ///
+  /// In en, this message translates to:
+  /// **'1 day before'**
+  String get planReminderOneDayBefore;
+
+  /// No description provided for @planReminderCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get planReminderCustom;
+
+  /// No description provided for @planReminderMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'Minutes before deadline'**
+  String get planReminderMinutes;
+
+  /// No description provided for @planReminderMinutesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a number from 1 to 525600'**
+  String get planReminderMinutesHint;
+
+  /// No description provided for @planEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit plan'**
+  String get planEdit;
+
+  /// No description provided for @planOverview.
+  ///
+  /// In en, this message translates to:
+  /// **'Overview'**
+  String get planOverview;
+
+  /// No description provided for @planProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Progress'**
+  String get planProgress;
+
+  /// No description provided for @planTimeline.
+  ///
+  /// In en, this message translates to:
+  /// **'Timeline'**
+  String get planTimeline;
+
+  /// No description provided for @planUpdateProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Update progress'**
+  String get planUpdateProgress;
+
+  /// No description provided for @planAddRecord.
+  ///
+  /// In en, this message translates to:
+  /// **'Add record'**
+  String get planAddRecord;
+
+  /// No description provided for @planComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete plan'**
+  String get planComplete;
+
+  /// No description provided for @planTerminate.
+  ///
+  /// In en, this message translates to:
+  /// **'Terminate plan'**
+  String get planTerminate;
+
+  /// No description provided for @planDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete plan'**
+  String get planDelete;
+
+  /// No description provided for @planRecordHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Record a result, issue, or next step...'**
+  String get planRecordHint;
+
+  /// No description provided for @planProgressNoteHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional note for this progress update...'**
+  String get planProgressNoteHint;
+
+  /// No description provided for @planOptionalNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional note'**
+  String get planOptionalNote;
+
+  /// No description provided for @planTerminationReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Termination reason (optional)'**
+  String get planTerminationReason;
+
+  /// No description provided for @planStatusNotStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Not started'**
+  String get planStatusNotStarted;
+
+  /// No description provided for @planStatusInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'In progress'**
+  String get planStatusInProgress;
+
+  /// No description provided for @planStatusOverdue.
+  ///
+  /// In en, this message translates to:
+  /// **'Overdue'**
+  String get planStatusOverdue;
+
+  /// No description provided for @planStatusCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed'**
+  String get planStatusCompleted;
+
+  /// No description provided for @planStatusTerminated.
+  ///
+  /// In en, this message translates to:
+  /// **'Terminated'**
+  String get planStatusTerminated;
+
+  /// No description provided for @planTimelineCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan created'**
+  String get planTimelineCreated;
+
+  /// No description provided for @planTimelineDetailsUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan details updated'**
+  String get planTimelineDetailsUpdated;
+
+  /// No description provided for @planTimelineProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Progress updated to {progress}%'**
+  String planTimelineProgress(int progress);
+
+  /// No description provided for @planTimelineRecord.
+  ///
+  /// In en, this message translates to:
+  /// **'Execution record'**
+  String get planTimelineRecord;
+
+  /// No description provided for @planTimelineCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan completed'**
+  String get planTimelineCompleted;
+
+  /// No description provided for @planTimelineTerminated.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan terminated'**
+  String get planTimelineTerminated;
+
+  /// No description provided for @planRemainingDays.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} days remaining'**
+  String planRemainingDays(int count);
+
+  /// No description provided for @planRemainingHours.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} hours remaining'**
+  String planRemainingHours(int count);
+
+  /// No description provided for @planDueSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Due soon'**
+  String get planDueSoon;
+
+  /// No description provided for @planOverdueDays.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} days overdue'**
+  String planOverdueDays(int count);
+
+  /// No description provided for @planValidateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a plan title'**
+  String get planValidateTitle;
+
+  /// No description provided for @planValidateGoal.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a concrete goal'**
+  String get planValidateGoal;
+
+  /// No description provided for @planValidateDeadline.
+  ///
+  /// In en, this message translates to:
+  /// **'Deadline must be later than the start time'**
+  String get planValidateDeadline;
+
+  /// No description provided for @planValidateReminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter valid reminder minutes'**
+  String get planValidateReminder;
+
+  /// No description provided for @planSaveSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan saved'**
+  String get planSaveSuccess;
+
+  /// No description provided for @planDeleteSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan deleted'**
+  String get planDeleteSuccess;
+
+  /// No description provided for @planOperationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Operation failed: {error}'**
+  String planOperationFailed(String error);
+
+  /// No description provided for @planConfirmComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark this plan as completed? Its progress will be set to 100%.'**
+  String get planConfirmComplete;
+
+  /// No description provided for @planConfirmTerminate.
+  ///
+  /// In en, this message translates to:
+  /// **'Terminate this plan? Its current progress and history will be kept.'**
+  String get planConfirmTerminate;
+
+  /// No description provided for @planConfirmDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete \"{title}\"? This will also remove its timeline.'**
+  String planConfirmDelete(String title);
+
+  /// No description provided for @planRecordRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an execution record'**
+  String get planRecordRequired;
+
+  /// No description provided for @planCreatedAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Created'**
+  String get planCreatedAt;
+
+  /// No description provided for @planSteps.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan steps'**
+  String get planSteps;
+
+  /// No description provided for @planActivity.
+  ///
+  /// In en, this message translates to:
+  /// **'Activity'**
+  String get planActivity;
+
+  /// No description provided for @planAddStep.
+  ///
+  /// In en, this message translates to:
+  /// **'Add step'**
+  String get planAddStep;
+
+  /// No description provided for @planRemoveStep.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove step'**
+  String get planRemoveStep;
+
+  /// No description provided for @planReorderStep.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag to reorder'**
+  String get planReorderStep;
+
+  /// No description provided for @planStepNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Step {index}'**
+  String planStepNumber(int index);
+
+  /// No description provided for @planStepTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Step title'**
+  String get planStepTitle;
+
+  /// No description provided for @planStepTitleHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Describe the result of this step'**
+  String get planStepTitleHint;
+
+  /// No description provided for @planStepTarget.
+  ///
+  /// In en, this message translates to:
+  /// **'Expected completion time'**
+  String get planStepTarget;
+
+  /// No description provided for @planCompletedSteps.
+  ///
+  /// In en, this message translates to:
+  /// **'{completed}/{total} steps completed'**
+  String planCompletedSteps(int completed, int total);
+
+  /// No description provided for @planNextStep.
+  ///
+  /// In en, this message translates to:
+  /// **'Next step'**
+  String get planNextStep;
+
+  /// No description provided for @planNoNextStep.
+  ///
+  /// In en, this message translates to:
+  /// **'All steps completed'**
+  String get planNoNextStep;
+
+  /// No description provided for @planFinalDeadline.
+  ///
+  /// In en, this message translates to:
+  /// **'Final deadline'**
+  String get planFinalDeadline;
+
+  /// No description provided for @planStepStatusPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending'**
+  String get planStepStatusPending;
+
+  /// No description provided for @planStepStatusOverdue.
+  ///
+  /// In en, this message translates to:
+  /// **'Overdue'**
+  String get planStepStatusOverdue;
+
+  /// No description provided for @planStepStatusCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed'**
+  String get planStepStatusCompleted;
+
+  /// No description provided for @planCompleteStep.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete step'**
+  String get planCompleteStep;
+
+  /// No description provided for @planReopenStep.
+  ///
+  /// In en, this message translates to:
+  /// **'Reopen step'**
+  String get planReopenStep;
+
+  /// No description provided for @planConfirmReopenStep.
+  ///
+  /// In en, this message translates to:
+  /// **'Reopen this step? The plan progress and status will be recalculated.'**
+  String get planConfirmReopenStep;
+
+  /// No description provided for @planStepCompletionNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Completion note (optional)'**
+  String get planStepCompletionNote;
+
+  /// No description provided for @planStepCompletedAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed at {time}'**
+  String planStepCompletedAt(String time);
+
+  /// No description provided for @planValidateStepTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a title for every step'**
+  String get planValidateStepTitle;
+
+  /// No description provided for @planValidateStepBeforeStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Step time cannot be earlier than the plan start time'**
+  String get planValidateStepBeforeStart;
+
+  /// No description provided for @planValidateStepOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'Each step time must be no earlier than the previous step'**
+  String get planValidateStepOrder;
+
+  /// No description provided for @planAtLeastOneStep.
+  ///
+  /// In en, this message translates to:
+  /// **'A plan must contain at least one step'**
+  String get planAtLeastOneStep;
+
+  /// No description provided for @planTimelineStepsUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan steps updated'**
+  String get planTimelineStepsUpdated;
+
+  /// No description provided for @planTimelineStepCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed step: {step}'**
+  String planTimelineStepCompleted(String step);
+
+  /// No description provided for @planTimelineStepReopened.
+  ///
+  /// In en, this message translates to:
+  /// **'Reopened step: {step}'**
+  String planTimelineStepReopened(String step);
+
+  /// No description provided for @planTimelineLegacyProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Legacy progress {progress}% migrated to a plan step'**
+  String planTimelineLegacyProgress(int progress);
 }
 
 class _AppLocalizationsDelegate

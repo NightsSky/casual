@@ -21,6 +21,7 @@ class ReminderService {
   bool _initialized = false;
   Timer? _tickTimer;
   final Map<String, DateTime> _nextFireAt = {};
+  final Map<String, Reminder> _scheduledReminders = {};
   final Set<String> _firedInThisMinute = {};
   final StreamController<Reminder> _windowsAlarmController =
       StreamController<Reminder>.broadcast();
@@ -122,6 +123,7 @@ class ReminderService {
     await initialize();
 
     _nextFireAt.remove(reminderId);
+    _scheduledReminders.remove(reminderId);
     _firedInThisMinute.removeWhere((k) => k.startsWith('$reminderId::'));
 
     if (!_useWindowsInAppAlarm) {
@@ -142,6 +144,7 @@ class ReminderService {
     await initialize();
 
     _nextFireAt.clear();
+    _scheduledReminders.clear();
     _firedInThisMinute.clear();
     _tickTimer?.cancel();
     _tickTimer = null;
@@ -165,9 +168,13 @@ class ReminderService {
     final next = _computeNextFire(reminder, DateTime.now());
     if (next == null) {
       _nextFireAt.remove(reminder.id);
+      _scheduledReminders.remove(reminder.id);
       return;
     }
+    // 计划步骤提醒不会写入普通 reminders 存储，Windows 轮询必须同时保留完整提醒载荷，
+    // 否则到点时只能找到触发时间，提醒会因缺少标题被当作无效任务移除。
     _nextFireAt[reminder.id] = next;
+    _scheduledReminders[reminder.id] = reminder;
     _ensureTickTimer();
   }
 
@@ -193,16 +200,18 @@ class ReminderService {
       final diff = fireAt.difference(now).inSeconds;
       if (diff > 5) continue;
 
-      final reminder = reminders.firstWhere(
-        (r) => r.id == id,
-        orElse: () => Reminder(
-          id: id,
-          title: '',
-          time: fireAt,
-        ),
-      );
+      final reminder = _scheduledReminders[id] ??
+          reminders.firstWhere(
+            (r) => r.id == id,
+            orElse: () => Reminder(
+              id: id,
+              title: '',
+              time: fireAt,
+            ),
+          );
       if (reminder.title.isEmpty || !reminder.enabled) {
         _nextFireAt.remove(id);
+        _scheduledReminders.remove(id);
         continue;
       }
 
@@ -228,6 +237,7 @@ class ReminderService {
       );
       if (following == null) {
         _nextFireAt.remove(id);
+        _scheduledReminders.remove(id);
       } else {
         _nextFireAt[id] = following;
       }
@@ -252,6 +262,8 @@ class ReminderService {
   void dispose() {
     _tickTimer?.cancel();
     _tickTimer = null;
+    _nextFireAt.clear();
+    _scheduledReminders.clear();
     _windowsAlarmController.close();
   }
 

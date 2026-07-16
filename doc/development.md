@@ -79,8 +79,10 @@ lib/
 │   ├── notes_page.dart      # 笔记列表
 │   ├── editor_page.dart     # 编辑器
 │   ├── reminder_page.dart   # 定时提醒
-│   ├── repo_page.dart       # 仓库管理
-│   ├── settings_page.dart   # 设置
+│   ├── plan_page.dart       # 多步骤计划编辑、步骤时间轴与执行动态
+│   ├── repo_page.dart       # 设置中的仓库管理
+│   ├── platform_config_page.dart # Git 平台配置
+│   ├── settings_page.dart   # 设置总览
 │   ├── token_help_page.dart # Token 获取帮助
 │   └── search_page.dart     # 搜索（遗留代码，已被助手功能取代）
 │

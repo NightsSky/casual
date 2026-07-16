@@ -21,6 +21,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get repository => 'Repository';
 
   @override
+  String get plan => 'Plan';
+
+  @override
   String get settings => 'Settings';
 
   @override
@@ -40,6 +43,69 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get preview => 'Preview';
+
+  @override
+  String get openMarkdownFile => 'Open Markdown file';
+
+  @override
+  String get markdownEditOnly => 'Edit only';
+
+  @override
+  String get markdownSplitView => 'Split edit and preview';
+
+  @override
+  String get markdownPreviewOnly => 'Preview only';
+
+  @override
+  String get showMarkdownToolbar => 'Show formatting toolbar';
+
+  @override
+  String get hideMarkdownToolbar => 'Hide formatting toolbar';
+
+  @override
+  String get enterMarkdownFocus => 'Full-screen edit/preview';
+
+  @override
+  String get exitMarkdownFocus => 'Exit full-screen edit/preview';
+
+  @override
+  String get saveMarkdownFile => 'Save (Ctrl+S)';
+
+  @override
+  String get externalMarkdownReadOnly =>
+      'External Markdown files are opened read-only on this platform. Edit and save the original file on Windows desktop.';
+
+  @override
+  String get externalMarkdownContentHint => 'Markdown content';
+
+  @override
+  String get externalMarkdownSaved => 'Saved to the original Markdown file';
+
+  @override
+  String externalMarkdownSaveFailed(String error) {
+    return 'Could not save the Markdown file: $error';
+  }
+
+  @override
+  String externalMarkdownOpenFailed(String error) {
+    return 'Could not open the Markdown file: $error';
+  }
+
+  @override
+  String get discardUnsavedChangesTitle => 'Discard unsaved changes?';
+
+  @override
+  String get discardExternalMarkdownMessage =>
+      'This external Markdown file has not been saved to your computer.';
+
+  @override
+  String get continueEditing => 'Keep editing';
+
+  @override
+  String get discardChanges => 'Discard changes';
+
+  @override
+  String get missingExternalMarkdown => 'No Markdown file was selected';
 
   @override
   String get syncToRemote => 'Sync to remote';
@@ -157,6 +223,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get repositoryManagement => 'Repository';
 
   @override
+  String get repositoryManagementDescription =>
+      'Sync notes and review sync stats and logs';
+
+  @override
   String get notConnected => 'Not connected';
 
   @override
@@ -263,6 +333,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get gitPlatformConfig => 'Git platform';
 
   @override
+  String get gitPlatformConfigDescription =>
+      'Configure GitHub or Gitee connection details';
+
+  @override
   String get platform => 'Platform';
 
   @override
@@ -324,6 +398,53 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get version => 'Version';
+
+  @override
+  String get checkForUpdate => 'Check for updates';
+
+  @override
+  String get checkingForUpdate => 'Checking for updates...';
+
+  @override
+  String get updateAvailable => 'New version available';
+
+  @override
+  String get upToDate => 'You are on the latest version';
+
+  @override
+  String updateNewVersion(String version) {
+    return 'Version $version';
+  }
+
+  @override
+  String updateCurrentVersion(String version) {
+    return 'Current version $version';
+  }
+
+  @override
+  String get updateReleaseNotes => 'Release notes';
+
+  @override
+  String get updateDownloadInstall => 'Download & install';
+
+  @override
+  String get updateDownloading => 'Downloading...';
+
+  @override
+  String get updateInstallNow => 'Install now';
+
+  @override
+  String get updateOpenReleasePage => 'Open release page';
+
+  @override
+  String get updateCheckFailed => 'Update check failed';
+
+  @override
+  String get updateLater => 'Later';
+
+  @override
+  String get updateWindowsZipHint =>
+      'After download, extract the archive and replace the existing app files.';
 
   @override
   String get clearAllData => 'Clear all data';
@@ -433,7 +554,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tokenPasteTip =>
-      'After copying it, return to Settings, paste it into Access Token, save the configuration, and test the connection.';
+      'After copying it, return to Git platform, paste it into Access Token, save the configuration, and test the connection.';
 
   @override
   String get reminder => 'Assistant';
@@ -645,4 +766,313 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noteTagCollapse => 'Collapse to tag';
+
+  @override
+  String get planPageSubtitle =>
+      'Break one goal into ordered steps and move it forward on a clear timeline.';
+
+  @override
+  String get createPlan => 'New plan';
+
+  @override
+  String get planFilterActive => 'Active';
+
+  @override
+  String get planFilterOverdue => 'Overdue';
+
+  @override
+  String get planFilterCompleted => 'Completed';
+
+  @override
+  String get planFilterTerminated => 'Terminated';
+
+  @override
+  String get planNoPlansYet => 'No plans yet';
+
+  @override
+  String get planCreateFirst =>
+      'Create a plan and start recording its progress.';
+
+  @override
+  String get planSelectPrompt => 'Select a plan to view its timeline';
+
+  @override
+  String get planTitleLabel => 'Plan title';
+
+  @override
+  String get planTitleHint => 'For example: Release casual 1.0';
+
+  @override
+  String get planGoalLabel => 'Goal';
+
+  @override
+  String get planGoalHint => 'Describe the concrete result you want to achieve';
+
+  @override
+  String get planStartAt => 'Start time';
+
+  @override
+  String get planDeadline => 'Deadline';
+
+  @override
+  String get planReminder => 'Deadline reminder';
+
+  @override
+  String get planReminderOff => 'No reminder';
+
+  @override
+  String get planReminderAtDeadline => 'At deadline';
+
+  @override
+  String get planReminderOneHourBefore => '1 hour before';
+
+  @override
+  String get planReminderOneDayBefore => '1 day before';
+
+  @override
+  String get planReminderCustom => 'Custom';
+
+  @override
+  String get planReminderMinutes => 'Minutes before deadline';
+
+  @override
+  String get planReminderMinutesHint => 'Enter a number from 1 to 525600';
+
+  @override
+  String get planEdit => 'Edit plan';
+
+  @override
+  String get planOverview => 'Overview';
+
+  @override
+  String get planProgress => 'Progress';
+
+  @override
+  String get planTimeline => 'Timeline';
+
+  @override
+  String get planUpdateProgress => 'Update progress';
+
+  @override
+  String get planAddRecord => 'Add record';
+
+  @override
+  String get planComplete => 'Complete plan';
+
+  @override
+  String get planTerminate => 'Terminate plan';
+
+  @override
+  String get planDelete => 'Delete plan';
+
+  @override
+  String get planRecordHint => 'Record a result, issue, or next step...';
+
+  @override
+  String get planProgressNoteHint =>
+      'Optional note for this progress update...';
+
+  @override
+  String get planOptionalNote => 'Optional note';
+
+  @override
+  String get planTerminationReason => 'Termination reason (optional)';
+
+  @override
+  String get planStatusNotStarted => 'Not started';
+
+  @override
+  String get planStatusInProgress => 'In progress';
+
+  @override
+  String get planStatusOverdue => 'Overdue';
+
+  @override
+  String get planStatusCompleted => 'Completed';
+
+  @override
+  String get planStatusTerminated => 'Terminated';
+
+  @override
+  String get planTimelineCreated => 'Plan created';
+
+  @override
+  String get planTimelineDetailsUpdated => 'Plan details updated';
+
+  @override
+  String planTimelineProgress(int progress) {
+    return 'Progress updated to $progress%';
+  }
+
+  @override
+  String get planTimelineRecord => 'Execution record';
+
+  @override
+  String get planTimelineCompleted => 'Plan completed';
+
+  @override
+  String get planTimelineTerminated => 'Plan terminated';
+
+  @override
+  String planRemainingDays(int count) {
+    return '$count days remaining';
+  }
+
+  @override
+  String planRemainingHours(int count) {
+    return '$count hours remaining';
+  }
+
+  @override
+  String get planDueSoon => 'Due soon';
+
+  @override
+  String planOverdueDays(int count) {
+    return '$count days overdue';
+  }
+
+  @override
+  String get planValidateTitle => 'Enter a plan title';
+
+  @override
+  String get planValidateGoal => 'Enter a concrete goal';
+
+  @override
+  String get planValidateDeadline =>
+      'Deadline must be later than the start time';
+
+  @override
+  String get planValidateReminder => 'Enter valid reminder minutes';
+
+  @override
+  String get planSaveSuccess => 'Plan saved';
+
+  @override
+  String get planDeleteSuccess => 'Plan deleted';
+
+  @override
+  String planOperationFailed(String error) {
+    return 'Operation failed: $error';
+  }
+
+  @override
+  String get planConfirmComplete =>
+      'Mark this plan as completed? Its progress will be set to 100%.';
+
+  @override
+  String get planConfirmTerminate =>
+      'Terminate this plan? Its current progress and history will be kept.';
+
+  @override
+  String planConfirmDelete(String title) {
+    return 'Delete \"$title\"? This will also remove its timeline.';
+  }
+
+  @override
+  String get planRecordRequired => 'Enter an execution record';
+
+  @override
+  String get planCreatedAt => 'Created';
+
+  @override
+  String get planSteps => 'Plan steps';
+
+  @override
+  String get planActivity => 'Activity';
+
+  @override
+  String get planAddStep => 'Add step';
+
+  @override
+  String get planRemoveStep => 'Remove step';
+
+  @override
+  String get planReorderStep => 'Drag to reorder';
+
+  @override
+  String planStepNumber(int index) {
+    return 'Step $index';
+  }
+
+  @override
+  String get planStepTitle => 'Step title';
+
+  @override
+  String get planStepTitleHint => 'Describe the result of this step';
+
+  @override
+  String get planStepTarget => 'Expected completion time';
+
+  @override
+  String planCompletedSteps(int completed, int total) {
+    return '$completed/$total steps completed';
+  }
+
+  @override
+  String get planNextStep => 'Next step';
+
+  @override
+  String get planNoNextStep => 'All steps completed';
+
+  @override
+  String get planFinalDeadline => 'Final deadline';
+
+  @override
+  String get planStepStatusPending => 'Pending';
+
+  @override
+  String get planStepStatusOverdue => 'Overdue';
+
+  @override
+  String get planStepStatusCompleted => 'Completed';
+
+  @override
+  String get planCompleteStep => 'Complete step';
+
+  @override
+  String get planReopenStep => 'Reopen step';
+
+  @override
+  String get planConfirmReopenStep =>
+      'Reopen this step? The plan progress and status will be recalculated.';
+
+  @override
+  String get planStepCompletionNote => 'Completion note (optional)';
+
+  @override
+  String planStepCompletedAt(String time) {
+    return 'Completed at $time';
+  }
+
+  @override
+  String get planValidateStepTitle => 'Enter a title for every step';
+
+  @override
+  String get planValidateStepBeforeStart =>
+      'Step time cannot be earlier than the plan start time';
+
+  @override
+  String get planValidateStepOrder =>
+      'Each step time must be no earlier than the previous step';
+
+  @override
+  String get planAtLeastOneStep => 'A plan must contain at least one step';
+
+  @override
+  String get planTimelineStepsUpdated => 'Plan steps updated';
+
+  @override
+  String planTimelineStepCompleted(String step) {
+    return 'Completed step: $step';
+  }
+
+  @override
+  String planTimelineStepReopened(String step) {
+    return 'Reopened step: $step';
+  }
+
+  @override
+  String planTimelineLegacyProgress(int progress) {
+    return 'Legacy progress $progress% migrated to a plan step';
+  }
 }

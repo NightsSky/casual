@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../data/sync/sync_engine.dart';
 import '../models/models.dart';
 import '../providers/notes_provider.dart';
@@ -9,6 +10,7 @@ import '../ui/core/extensions/build_context_l10n.dart';
 import '../ui/widgets/conflict_resolution_dialog.dart';
 import '../utils/common_utils.dart';
 
+/// 2026-07-15 12:40:41（北京时间）：仓库管理页迁入设置分支，保留原同步、统计和日志能力。
 class RepoPage extends ConsumerWidget {
   const RepoPage({super.key});
 
@@ -54,11 +56,12 @@ class RepoPage extends ConsumerWidget {
     );
   }
 
+  /// 2026-07-15 12:40:41（北京时间）：设置二级页提供返回入口，直接访问时回退到设置总览。
   Widget _buildHeader(
       BuildContext context, WidgetRef ref, GitState gitState, bool isDesktop) {
     return Container(
       padding: EdgeInsets.fromLTRB(
-        AppSpacing.lg,
+        AppSpacing.sm,
         isDesktop
             ? AppSpacing.md
             : MediaQuery.of(context).padding.top + AppSpacing.md,
@@ -76,6 +79,16 @@ class RepoPage extends ConsumerWidget {
       ),
       child: Row(
         children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/settings');
+              }
+            },
+          ),
           Expanded(
             child: Text(context.l10n.repositoryManagement,
                 style: const TextStyle(
@@ -156,11 +169,13 @@ class RepoPage extends ConsumerWidget {
     );
   }
 
+  /// 2026-07-15 12:40:41（北京时间）：仓库设置动作统一进入独立 Git 平台配置页。
   Widget _buildActionGrid(BuildContext context, WidgetRef ref, GitState state) {
     final actions = [
       _ActionData(
           Icons.sync, context.l10n.fullSync, () => _sync(ref, context)),
-      _ActionData(Icons.settings, context.l10n.repositorySettings, () {}),
+      _ActionData(Icons.settings, context.l10n.repositorySettings,
+          () => context.push('/settings/platform-config')),
     ];
 
     return GridView.count(

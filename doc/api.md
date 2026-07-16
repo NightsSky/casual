@@ -408,6 +408,35 @@ dart run tool/remote_live_check.dart \
 清单可见性、**本地 computeBlobSha 与服务端 blob sha 一致性**、UTF-8 内容往返、
 更新/重命名乐观锁、删除清理。
 
+## GitHub Releases API（应用内更新）
+
+更新功能调用公开仓库的 Release 接口，**无需 Token**（`lib/data/services/update_service.dart`）。
+
+### 获取最新发布版本
+
+```
+GET https://api.github.com/repos/NightsSky/casual/releases/latest
+Accept: application/vnd.github.v3+json
+```
+
+关键响应字段与 `AppRelease.fromJson` 映射：
+
+| 字段 | 用途 |
+| --- | --- |
+| `tag_name` | 版本标签（`v0.2.0`），经 `normalizeVersion` 去前缀后比较 |
+| `body` | 更新说明（Markdown），对话框展示 |
+| `html_url` | Release 页面，降级下载入口 |
+| `assets[].name` | 资产文件名，按后缀 `.apk`/`.exe`/`.zip` 选平台 |
+| `assets[].browser_download_url` | 直接下载地址 |
+| `assets[].size` | 文件字节数，用于进度总量与复用判断 |
+
+- `404` → 视为“尚未发布任何版本”。
+- 资产下载走 `browser_download_url` 的流式 `GET`（可能 302 跳转到 CDN，`http` 客户端自动跟随）。
+
+### 发布约定
+
+由 `.github/workflows/release.yml` 在推送 `vX.Y.Z` tag 时产出：`casual-<版本>.apk`、`casual-windows-<版本>.zip`。tag 版本须与 `pubspec.yaml` 的 `version` 对齐，否则版本比较失效。
+
 ## 相关文档
 
 - [架构设计](./architecture.md) - 整体架构说明

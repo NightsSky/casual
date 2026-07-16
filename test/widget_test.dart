@@ -22,8 +22,13 @@ import 'package:casual/pages/editor_page.dart';
 import 'package:casual/pages/note_tag_window_page.dart';
 import 'package:casual/pages/note_window_page.dart';
 import 'package:casual/pages/notes_page.dart';
+import 'package:casual/pages/plan_page.dart';
+import 'package:casual/pages/platform_config_page.dart';
 import 'package:casual/pages/reminder_alarm_window_page.dart';
+import 'package:casual/pages/repo_page.dart';
+import 'package:casual/pages/settings_page.dart';
 import 'package:casual/providers/notes_provider.dart';
+import 'package:casual/providers/plan_provider.dart';
 import 'package:casual/providers/reminder_provider.dart';
 import 'package:casual/services/reminder_service.dart';
 import 'package:casual/services/note_window_service.dart';
@@ -51,9 +56,12 @@ class _EmptyRemote implements RemoteRepo {
 }
 
 class _SeededNotesNotifier extends NotesNotifier {
-  _SeededNotesNotifier(Note note)
+  _SeededNotesNotifier(List<Note> notes)
       : super(NotesRepository(storageService: StorageService())) {
-    state = NotesState(notes: [note], currentNoteId: note.id);
+    state = NotesState(
+      notes: notes,
+      currentNoteId: notes.isEmpty ? null : notes.first.id,
+    );
   }
 }
 
@@ -113,6 +121,346 @@ void main() {
     expect(find.text('casual'), findsOneWidget);
     expect(find.text('No notes yet'), findsOneWidget);
     expect(find.byIcon(Icons.add), findsOneWidget);
+  });
+
+  testWidgets('note list shows distinct Markdown and TXT format icons',
+      (tester) async {
+    tester.binding.platformDispatcher.localeTestValue = const Locale('en');
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.binding.platformDispatcher.clearLocaleTestValue();
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final markdownNote = Note(
+      id: 'format-markdown',
+      title: 'Markdown note',
+      content: '# Markdown',
+      format: NoteFormat.markdown,
+    );
+    final txtNote = Note(
+      id: 'format-txt',
+      title: 'TXT note',
+      content: 'Plain text',
+      format: NoteFormat.txt,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          notesProvider.overrideWith(
+            (ref) => _SeededNotesNotifier([markdownNote, txtNote]),
+          ),
+        ],
+        child: const MaterialApp(
+          localizationsDelegates: [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: [Locale('en'), Locale('zh')],
+          home: Scaffold(body: NotesPage()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // 两种格式的标识不仅颜色不同，图标与语义标签也可独立辨识。
+    final markdownBadge =
+        find.byKey(const ValueKey('noteFormatBadge-format-markdown'));
+    final txtBadge = find.byKey(const ValueKey('noteFormatBadge-format-txt'));
+    expect(markdownBadge, findsOneWidget);
+    expect(txtBadge, findsOneWidget);
+    final markdownIconFinder = find.descendant(
+      of: markdownBadge,
+      matching: find.byIcon(Icons.code_rounded),
+    );
+    final txtIconFinder = find.descendant(
+      of: txtBadge,
+      matching: find.byIcon(Icons.notes_rounded),
+    );
+    expect(markdownIconFinder, findsOneWidget);
+    expect(txtIconFinder, findsOneWidget);
+    expect(tester.widget<Icon>(markdownIconFinder).semanticLabel, 'MD');
+    expect(tester.widget<Icon>(txtIconFinder).semanticLabel, 'TXT');
+  });
+
+  testWidgets('repository and Git platform configuration live under settings',
+      (tester) async {
+    tester.binding.platformDispatcher.localeTestValue = const Locale('en');
+    addTearDown(tester.binding.platformDispatcher.clearLocaleTestValue);
+
+    await tester.pumpWidget(const ProviderScope(child: GitNoteApp()));
+    await tester.pumpAndSettle();
+
+    // 主导航第三项进入独立计划模块，不再直接进入仓库管理。
+    expect(find.text('Plan'), findsOneWidget);
+    await tester.tap(find.text('Plan'));
+    await tester.pumpAndSettle();
+    expect(find.byType(PlanPage), findsOneWidget);
+
+    // 设置总览分别提供仓库管理和 Git 平台配置两个独立入口。
+    await tester.tap(find.text('Settings'));
+    await tester.pumpAndSettle();
+    expect(find.byType(SettingsPage), findsOneWidget);
+    expect(find.text('Repository'), findsOneWidget);
+    expect(find.text('Git platform'), findsOneWidget);
+
+    await tester.tap(find.text('Repository'));
+    await tester.pumpAndSettle();
+    expect(find.byType(RepoPage), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.arrow_back));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Git platform'));
+    await tester.pumpAndSettle();
+    expect(find.byType(PlatformConfigPage), findsOneWidget);
+
+    // 全局路由由后续用例复用，验证完成后回到笔记首页，避免测试间状态串扰。
+    await tester.tap(find.text('Notes'));
+    await tester.pumpAndSettle();
+    expect(find.byType(NotesPage), findsOneWidget);
+  });
+
+  testWidgets('plan flow creates steps, completes out of order and adds record',
+      (tester) async {
+    tester.binding.platformDispatcher.localeTestValue = const Locale('en');
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.binding.platformDispatcher.clearLocaleTestValue();
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(const ProviderScope(child: GitNoteApp()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Plan'));
+    await tester.pumpAndSettle();
+    expect(find.text('No plans yet'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('create-plan-button')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('plan-title-field')),
+      'Release casual 1.0',
+    );
+    await tester.enterText(
+      find.byKey(const Key('plan-goal-field')),
+      'Ship a stable first release',
+    );
+    await tester.enterText(
+      find.byKey(const Key('plan-step-title-field-0')),
+      'Create the release project',
+    );
+    await tester.ensureVisible(find.byKey(const Key('add-plan-step-button')));
+    await tester.tap(find.byKey(const Key('add-plan-step-button')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('plan-step-title-field-1')),
+      'Start implementation',
+    );
+    await tester.ensureVisible(find.byKey(const Key('save-plan-button')));
+    await tester.tap(find.byKey(const Key('save-plan-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Release casual 1.0'), findsOneWidget);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(PlanPage)),
+    );
+    final createdPlan = container.read(planProvider).plans.single;
+    expect(createdPlan.steps, hasLength(2));
+    expect(
+      createdPlan.steps.every(
+        (step) => step.reminderEnabled && step.reminderMinutesBefore == 0,
+      ),
+      isTrue,
+    );
+
+    await tester.tap(find.text('Release casual 1.0'));
+    await tester.pumpAndSettle();
+    expect(find.text('Plan steps'), findsOneWidget);
+    expect(find.text('Activity'), findsOneWidget);
+    expect(find.text('Step 1'), findsOneWidget);
+    expect(find.text('Step 2'), findsOneWidget);
+    expect(find.text('Plan created'), findsOneWidget);
+
+    final completeButtons = find.widgetWithText(FilledButton, 'Complete step');
+    await tester.ensureVisible(completeButtons.last);
+    await tester.tap(completeButtons.last);
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('plan-step-completion-note-field')),
+      'Implementation started early',
+    );
+    await tester.tap(
+      find.byKey(const Key('confirm-complete-plan-step-button')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('50%'), findsOneWidget);
+    expect(find.text('Implementation started early'), findsWidgets);
+
+    final remainingComplete =
+        find.widgetWithText(FilledButton, 'Complete step');
+    await tester.ensureVisible(remainingComplete);
+    await tester.tap(remainingComplete);
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const Key('confirm-complete-plan-step-button')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('100%'), findsOneWidget);
+    expect(find.text('Completed'), findsWidgets);
+
+    final reopenButton = find.widgetWithText(TextButton, 'Reopen step').last;
+    await tester.ensureVisible(reopenButton);
+    await tester.tap(reopenButton);
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'OK'));
+    await tester.pumpAndSettle();
+    expect(find.text('50%'), findsOneWidget);
+
+    await tester.ensureVisible(
+      find.byKey(const Key('add-plan-record-button')),
+    );
+    await tester.tap(find.byKey(const Key('add-plan-record-button')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('plan-record-field')),
+      'Finished the plan data model',
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Finished the plan data model'));
+    expect(find.text('Execution record'), findsOneWidget);
+    expect(find.text('Finished the plan data model'), findsOneWidget);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Notes'));
+    await tester.pumpAndSettle();
+    expect(find.byType(NotesPage), findsOneWidget);
+  });
+
+  testWidgets('plan editor reorders steps and blocks decreasing times',
+      (tester) async {
+    tester.binding.platformDispatcher.localeTestValue = const Locale('en');
+    tester.view.physicalSize = const Size(500, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.binding.platformDispatcher.clearLocaleTestValue();
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(const ProviderScope(child: GitNoteApp()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Plan'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('create-plan-button')));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const Key('plan-title-field')),
+      'Reordered plan',
+    );
+    await tester.enterText(
+      find.byKey(const Key('plan-goal-field')),
+      'Verify ordered step validation',
+    );
+    await tester.enterText(
+      find.byKey(const Key('plan-step-title-field-0')),
+      'Earlier step',
+    );
+    await tester.ensureVisible(find.byKey(const Key('add-plan-step-button')));
+    await tester.tap(find.byKey(const Key('add-plan-step-button')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('plan-step-title-field-1')),
+      'Later step',
+    );
+    await tester.tap(find.byKey(const Key('remove-plan-step-1')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('plan-step-title-field-1')), findsNothing);
+
+    await tester.tap(find.byKey(const Key('add-plan-step-button')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('plan-step-title-field-1')),
+      'Later step',
+    );
+
+    await tester.drag(
+      find.byIcon(Icons.drag_handle).last,
+      const Offset(0, -260),
+    );
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('save-plan-button')));
+    await tester.tap(find.byKey(const Key('save-plan-button')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Each step time must be no earlier than the previous step'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Notes'));
+    await tester.pumpAndSettle();
+    expect(find.byType(NotesPage), findsOneWidget);
+  });
+
+  testWidgets('plan uses list and detail split view on wide screens',
+      (tester) async {
+    tester.binding.platformDispatcher.localeTestValue = const Locale('en');
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.binding.platformDispatcher.clearLocaleTestValue();
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final now = DateTime.now();
+    final plan = Plan.create(
+      title: 'Wide plan',
+      goal: 'Verify the desktop split layout',
+      startAt: now,
+      steps: [
+        PlanStep(
+          title: 'Create project',
+          targetAt: now.add(const Duration(days: 2)),
+        ),
+        PlanStep(
+          title: 'Start implementation',
+          targetAt: now.add(const Duration(days: 7)),
+        ),
+      ],
+      now: now,
+    );
+    SharedPreferences.setMockInitialValues({
+      'gitnote_plans': jsonEncode([plan.toJson()]),
+    });
+
+    await tester.pumpWidget(const ProviderScope(child: GitNoteApp()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Plan'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('plan-list')), findsOneWidget);
+    expect(find.text('Wide plan'), findsNWidgets(2));
+    expect(find.text('Overview'), findsOneWidget);
+    expect(find.text('Plan steps'), findsOneWidget);
+    expect(find.text('Activity'), findsOneWidget);
+
+    await tester.tap(find.text('Notes'));
+    await tester.pumpAndSettle();
+    expect(find.byType(NotesPage), findsOneWidget);
   });
 
   testWidgets('create note flow opens editor and saves draft', (tester) async {
@@ -307,7 +655,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          notesProvider.overrideWith((ref) => _SeededNotesNotifier(note)),
+          notesProvider.overrideWith((ref) => _SeededNotesNotifier([note])),
           externallyOpenNotesProvider.overrideWith((ref) => {note.id}),
         ],
         child: _DetachedEditorHarness(noteId: note.id),
@@ -328,7 +676,7 @@ void main() {
     expect(find.byIcon(Icons.more_horiz), findsNothing);
   });
 
-  testWidgets('markdown note window opens as markdown preview', (tester) async {
+  testWidgets('markdown note window opens as split workspace', (tester) async {
     tester.binding.platformDispatcher.localeTestValue = const Locale('en');
     addTearDown(tester.binding.platformDispatcher.clearLocaleTestValue);
 
@@ -355,10 +703,22 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    // Windows 独立 Markdown 窗口默认分屏：左侧源码、右侧实时渲染，工具栏默认收起。
     expect(find.byType(Markdown), findsOneWidget);
     expect(find.text('Markdown'), findsOneWidget);
-    expect(find.byType(TextField), findsNothing);
-    expect(find.byIcon(Icons.edit_outlined), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('noteWindowMarkdownSplitSource')),
+      findsOneWidget,
+    );
+    expect(find.byType(TextField), findsNWidgets(2));
+    // Markdown 标题栏只显示当前分屏模式的单个切换按钮。
+    expect(
+      find.byKey(const ValueKey('noteWindowMarkdownModeCycleButton')),
+      findsOneWidget,
+    );
+    expect(find.byIcon(Icons.edit_outlined), findsNothing);
+    expect(find.byIcon(Icons.vertical_split), findsOneWidget);
+    expect(find.byIcon(Icons.visibility_outlined), findsNothing);
     expect(find.byIcon(Icons.push_pin_outlined), findsOneWidget);
     expect(find.byIcon(Icons.opacity), findsOneWidget);
     expect(find.byIcon(Icons.format_bold), findsNothing);
@@ -377,14 +737,42 @@ void main() {
     await tester.tap(find.text('OK'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.edit_outlined));
+    final modeButton =
+        find.byKey(const ValueKey('noteWindowMarkdownModeCycleButton'));
+    await tester.tap(modeButton);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('noteWindowMarkdownSplitSource')),
+      findsNothing,
+    );
+    expect(find.byType(Markdown), findsOneWidget);
+    expect(find.byType(TextField), findsNothing);
+    expect(find.byIcon(Icons.visibility_outlined), findsOneWidget);
+
+    await tester.tap(modeButton);
     await tester.pumpAndSettle();
 
     expect(find.byType(Markdown), findsNothing);
     expect(find.byType(TextField), findsNWidgets(2));
     final contentField = tester.widget<TextField>(find.byType(TextField).last);
     expect(contentField.focusNode?.hasFocus, isTrue);
-    expect(find.byIcon(Icons.visibility_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.format_bold), findsNothing);
+    expect(find.byIcon(Icons.edit_outlined), findsOneWidget);
+
+    await tester.tap(modeButton);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('noteWindowMarkdownSplitSource')),
+      findsOneWidget,
+    );
+    expect(find.byType(Markdown), findsOneWidget);
+    expect(find.byIcon(Icons.vertical_split), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Show formatting toolbar'));
+    await tester.pumpAndSettle();
+
     expect(find.byIcon(Icons.format_bold), findsOneWidget);
     expect(find.byIcon(Icons.format_italic), findsOneWidget);
   });

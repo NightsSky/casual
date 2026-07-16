@@ -5,10 +5,11 @@
 ### 笔记列表页 (`lib/pages/notes_page.dart`)
 
 **功能**：
-- 新建笔记，支持 TXT / Markdown 两种格式：桌面布局（窗口宽度 ≥ 1200px）通过顶栏「+」按钮弹出格式选择菜单；移动布局通过右下角悬浮按钮展开格式选择。创建后自动跳转编辑器
-- 展示所有笔记列表，支持按更新时间、创建时间、标题排序
+- 新建笔记，支持 TXT / Markdown 两种格式：Windows 窗口宽度 ≥ 1024px（其他平台 ≥ 1200px）使用桌面顶栏「+」按钮弹出格式选择菜单；移动布局通过右下角悬浮按钮展开格式选择。创建后自动跳转编辑器
+- 展示所有笔记列表，支持按更新时间、创建时间、标题排序；每张卡片标题左侧显示 Markdown 代码图标或 TXT 文档图标，无需打开即可区分格式
 - 支持按标签筛选笔记
 - 展示笔记同步状态（已同步/本地/冲突）
+- 顶栏文件夹按钮可通过系统文件选择器打开电脑中的 `.md` / `.markdown` / `.mdown` / `.mkdn` 文件（完整规则见下方“外部 Markdown 文件”）
 - 长按笔记卡片显示操作菜单（编辑、置顶、删除）
 - 拖出 txt / Markdown 笔记为独立窗口（仅 Windows 桌面端，详见[独立笔记窗口](#7-独立笔记窗口仅-windows-桌面端)）
 
@@ -32,8 +33,10 @@
 ### 笔记编辑页 (`lib/pages/editor_page.dart`)
 
 **功能**：
-- Markdown 编辑器，支持实时预览
-- 预览样式：内容左对齐占满宽度（不居中）；h1/h2/h3 标题带整行浅色背景 + 左侧主色竖条（`_HeadingBackgroundBuilder` 自定义渲染，标题内行内格式按纯文本显示）
+- Markdown 提供**仅编辑、编辑与预览分屏、仅预览**三种视图，顶部只显示一个当前模式按钮，点击即循环切换。Windows 桌面端打开 Markdown 笔记时默认进入分屏；空间不足时分屏自动改为上下排列，保证源码和预览仍可同时查看
+- 点击全屏按钮进入专注视图：隐藏应用侧栏、笔记列表、标题、标签和统计栏，让当前编辑/预览区域占满应用内容区；悬浮控制可恢复普通布局
+- Windows 默认收起格式工具栏，减少占用；可通过顶部按钮随时显示。移动端继续保留工具栏，确保触摸输入可用
+- 预览样式：内容左对齐占满宽度（不居中）；h1/h2/h3 标题带整行浅色背景 + 左侧主色竖条（统一由 `MarkdownPreview` 自定义渲染，标题内行内格式按纯文本显示）
 - 富文本工具栏（标题、粗体、斜体、链接、图片等）
 - 自动保存（输入时触发）
 - 标签管理
@@ -46,9 +49,10 @@
 
 **关键代码位置**：
 - 自动保存：`lib/pages/editor_page.dart:79-91` (`_saveNote`)
-- 工具栏：`lib/pages/editor_page.dart:306-332` (`_buildToolbar`)
-- 插入文本：`lib/pages/editor_page.dart:334-353` (`_insertText`)
-- 预览模式：`lib/pages/editor_page.dart:437-596` (`_buildPreview`)
+- 三种 Markdown 视图与专注视图：`lib/pages/editor_page.dart` (`_buildMarkdownModeButton`、`_buildSplitEditor`、`_buildFocusWorkspace`)
+- 工具栏：`lib/pages/editor_page.dart` (`_buildToolbar`)
+- 插入文本：`lib/pages/editor_page.dart` (`_insertText`)
+- 预览模式：`lib/widgets/markdown_preview.dart` (`MarkdownPreview`)
 - 空笔记清理：`lib/pages/editor_page.dart:94-115` (`_isEmptyNote`, `_shouldDiscard`, `_discardIfEmpty`)
 - 单条同步：`lib/pages/editor_page.dart:475-536` (`_syncNote`)
 
@@ -57,7 +61,38 @@
 - 本地状态：
   - `_titleController` - 标题文本控制器
   - `_contentController` - 正文文本控制器
-  - `_isPreview` - 是否预览模式
+  - `_markdownViewMode` - 当前 Markdown 视图（编辑 / 分屏 / 预览）
+  - `markdownEditorFocusProvider` - 控制桌面端专注视图是否隐藏全局导航与列表
+
+### 外部 Markdown 文件 (`lib/pages/external_markdown_page.dart`)
+
+**使用方法**：
+
+1. 在笔记列表顶栏点击“打开 Markdown 文件”文件夹按钮
+2. 从系统文件选择器选择 `.md`、`.markdown`、`.mdown` 或 `.mkdn` 文件
+3. Windows 桌面端默认分屏浏览源码和渲染结果，可通过单个模式按钮循环切换仅编辑、分屏、仅预览，并可进入全屏专注视图
+4. 编辑后按顶部保存按钮或 `Ctrl+S`，将完整 Markdown 原文写回所选的同一文件
+
+**保存与边界**：
+
+- 外部文件使用独立会话，不创建 `Note`、不写入 `notesProvider` / `shared_preferences`，也不会进入 GitHub/Gitee 同步
+- 保存原样写入编辑器的完整源码，因此 YAML front matter、注释和换行不会被应用的笔记编解码逻辑转换
+- 预览会隐藏文件开头的 YAML front matter，并以所选文件所在目录解析 Markdown 相对图片；保存仍保留完整原文
+- 返回前如有未保存修改，会要求用户确认继续编辑或放弃修改；保存失败时保留编辑内容并提示错误
+- 当前不监听其他程序对该文件的后续改动；需要重新读取时可再次通过文件选择器打开
+- 当前不注册 Windows 文件关联；请从应用内“打开 Markdown 文件”入口选择文档
+
+**平台支持**：
+
+- ✅ Windows：选择、编辑、保存原文件、分屏和专注视图
+- ✅ macOS / Linux：使用支持原路径的文件选择器时可编辑保存（未纳入本次重点验证）
+- ⚠️ Android / iOS：可通过系统选择器以只读方式预览，避免受 SAF / 文件授权限制时误写第三方文件
+
+**关键代码位置**：
+
+- 选择与读写：`lib/services/external_markdown_file_service.dart`
+- 独立编辑会话：`lib/pages/external_markdown_page.dart`
+- 打开入口与路由：`lib/pages/notes_page.dart`、`lib/main.dart` (`/external-markdown`)
 
 ## 2. Git 同步
 
@@ -79,7 +114,7 @@
 
 **关键代码位置**：
 - 同步入口（笔记页）：`lib/pages/notes_page.dart` (`_handleSync`)
-- 同步入口（仓库页）：`lib/pages/repo_page.dart` (`_sync`)
+- 同步入口（设置 → 仓库管理）：`lib/pages/repo_page.dart` (`_sync`)
 - 会话驱动：`lib/ui/features/git/view_models/git_view_model.dart` (`runSync`)
 - 会话状态机：`lib/data/sync/sync_engine.dart` (`SyncEngine.sync`)
 - 判定表：`lib/data/sync/sync_planner.dart` (`planSync`)
@@ -179,26 +214,87 @@
 4. **Android 通知受系统权限影响**：Android 13+ 需要允许通知权限；Android 12+ 若未授予精确闹钟权限，提醒会按系统允许的非精确模式触发，可能有轻微延迟。MIUI 等系统还可能按渠道单独控制横幅/声音，需要允许「Assistant alarms」渠道的弹出和铃声。
 5. **`custom` 重复类型未实现**：调度时直接返回 `null`（不调度），界面未提供该选项。
 
-## 5. 设置管理
+## 5. 计划与设置管理
+
+### 计划页 (`lib/pages/plan_page.dart`)
+
+计划模块将一个目标拆成有顺序的执行步骤，并分别展示“计划步骤”时间轴和“执行动态”。主导航进入 `/plan`：
+
+- **移动端/窄窗口**：单列计划列表，点击后进入独立详情页
+- **桌面端/宽窗口**：左侧计划列表、右侧步骤时间轴与执行动态双栏展示
+- **列表筛选**：全部、进行中、已逾期、已完成、已终止
+
+主要能力：
+
+1. 每个计划保留唯一标题、目标和开始时间，至少包含一个步骤
+2. 每个步骤填写标题、预计完成时间，并可设置独立提醒
+3. 支持添加、删除和拖动排序步骤；步骤预计时间必须按顺序非递减
+4. 允许跳过前序步骤完成后续步骤，完成时可填写步骤完成说明
+5. 整体进度按“已完成步骤数 / 总步骤数”自动计算，不再手动填写百分比
+6. 全部步骤完成时计划自动完成；撤销任一步完成状态后计划自动恢复进行中
+7. 保留计划级执行记录、终止和删除能力
+8. 详情上方展示步骤计划轴，下方展示创建、编辑、完成、撤销、记录和终止动态
+
+**状态规则**：
+
+- 步骤未完成且达到预计时间：该步骤显示已逾期
+- 早期步骤逾期但最后步骤时间未到：计划整体仍显示进行中
+- 当前时间达到最后步骤预计时间且计划未完成：计划整体显示已逾期
+- 所有步骤完成：计划自动变为已完成，进度为 100%
+- 撤销已完成步骤或给已完成计划新增未完成步骤：计划恢复进行中
+- 已终止计划保持只读，保留步骤完成情况和全部历史
+
+**提醒规则**：
+
+- 每个步骤独立支持不提醒、到期时、提前 1 小时、提前 1 天和自定义分钟数
+- 与助手提醒一致，新建步骤默认启用“到期时提醒”；只有用户显式选择“不提醒”时才关闭
+- 步骤提醒使用 `plan-{planId}-step-{stepId}` 独立标识，互不覆盖
+- 提前提醒时间已错过但步骤时间仍在未来时，降级为步骤到期时提醒
+- 选择当前分钟作为步骤到期时间时，会在当前时间约 10 秒后触发，给 Windows 轮询和移动端调度留出缓冲
+- Windows 在内存调度表中保留步骤提醒的完整标题和时间；步骤提醒无需写入普通助手提醒列表也能正常弹窗
+- 完成、删除步骤或终止、删除计划时取消对应提醒；撤销完成后按有效时间恢复提醒
+- Android/iOS 使用系统本地通知；Windows 复用应用内独立提醒小窗口
+
+**旧数据兼容**：
+
+第一版没有 `steps` 的计划会自动迁移为单步骤计划：步骤标题取原目标、预计时间取原截止时间、提醒继承原提醒；原手动进度作为迁移动态保留，后续保存统一写入新结构。 若原计划开启过整体提醒，启动迁移时会先取消旧 `plan-{id}` 调度，再注册新的步骤提醒，避免重复通知。
+
+**关键代码位置**：
+
+- 计划与步骤领域规则：`lib/domain/models/plan.dart`
+- 本地持久化和旧数据读取：`lib/data/repositories/plans_repository.dart`
+- 步骤状态与提醒联动：`lib/providers/plan_provider.dart`
+- 响应式步骤时间轴：`lib/pages/plan_page.dart`
+
+**平台支持**：✅ Windows | ✅ Android | ✅ iOS
 
 ### 设置页 (`lib/pages/settings_page.dart`)
 
-**功能**：
-- Git 平台配置（GitHub/Gitee）
-- 仓库信息配置（用户名、仓库名、分支）
-- Access Token 配置
-- 窗口设置（仅 Windows）：配置关闭主面板时的行为（每次询问 / 最小化到系统托盘 / 退出程序）
+设置页作为配置总览，保留同步偏好、Windows 窗口设置和关于信息，并提供两个独立入口：
+
+- **仓库管理**：进入 `/settings/repository`，执行同步、查看同步统计与同步记录
+- **Git 平台配置**：进入 `/settings/platform-config`，维护 GitHub/Gitee、Access Token、用户名/组织、仓库名、分支和笔记目录
+- **窗口设置**（仅 Windows）：配置关闭主面板时的行为（每次询问 / 最小化到系统托盘 / 退出程序）
 - 主题切换（待实现）
 - 语言切换（待实现）
 
+### 仓库管理页 (`lib/pages/repo_page.dart`)
+
+仓库管理能力从主导航迁入设置分支，原有连接状态、全量同步、同步统计、冲突处理和同步日志保持不变。“仓库设置”快捷操作会进入独立 Git 平台配置页。
+
+### Git 平台配置页 (`lib/pages/platform_config_page.dart`)
+
+平台与仓库连接表单从设置总览拆出。连接测试会先保存当前表单，再使用最新配置验证远端连接；Token 帮助页位于 `/settings/platform-config/token-help`。
+
 **关键代码位置**：
-- 配置表单：`lib/pages/settings_page.dart`
+- 设置总览：`lib/pages/settings_page.dart`
+- 仓库管理：`lib/pages/repo_page.dart`
+- 平台配置表单：`lib/pages/platform_config_page.dart`
 - 配置持久化：`lib/data/repositories/git_config_repository.dart`
 - 关闭行为偏好：`lib/providers/window_provider.dart`
 
 **存储方式**：
-使用 `shared_preferences` 持久化配置信息到本地。
-
+Git 连接信息和窗口偏好继续使用 `shared_preferences` 持久化到本地。
 ## 6. 窗口与系统托盘（仅 Windows 桌面端）
 
 > 平台限制：本功能仅在 Windows 桌面端启用；Android/iOS/Web 上相关代码均为空操作，不注册任何监听。
@@ -242,7 +338,9 @@
 
 ### 独立窗口 (`lib/pages/note_window_page.dart`)
 
-记事本风格的轻量编辑页：标题栏 + 正文 + 底部字数统计。标题栏右侧对 txt 与 Markdown 均提供编辑/预览切换按钮，且两种格式打开时**默认进入预览模式**（与主编辑器"打开已有笔记默认预览"一致），需要修改时再切到编辑态。txt 保持纯文本编辑，**无独立标题输入框**——标题栏只读展示从正文首行派生的标题（空内容回退「无标题」文案），用于窗口辨识与拖动；txt 预览态在受限宽度阅读纸张上以可选中纯文本渲染正文（与主编辑器一致）。Markdown 预览态展示渲染结果，预览态标题只读；切到编辑后标题与正文才可修改，并显示紧凑 Markdown 工具栏（标题、加粗、斜体、引用、列表、任务、代码块、链接、图片、分隔线）。独立窗口隐藏原生 Windows 标题栏，笔记标题、拖动手柄、置顶、透明度、最小化、最大化/还原和关闭操作都放在内容标题行内；透明度按钮可打开滑块，把当前窗口调整为 35% - 100% 不透明度，关闭窗口后恢复默认。预览内容可选中复制。窗口可通过标题行拖动并自由调整大小。
+记事本风格的轻量编辑页：标题栏 + 正文 + 底部字数统计。txt 保持原有编辑/预览切换，默认进入只读预览；**无独立标题输入框**——标题栏只读展示从正文首行派生的标题（空内容回退「无标题」文案），用于窗口辨识与拖动；txt 预览态在受限宽度阅读纸张上以可选中纯文本渲染正文。
+
+Markdown 独立窗口默认进入**编辑 / 实时预览分屏**，标题栏的单个模式按钮可在仅编辑、分屏和仅预览之间循环切换；源码、预览和主窗口共享同一份内容更新链路，输入后立即回传主窗口并刷新渲染结果。Windows 默认收起 Markdown 格式工具栏，用户可按顶部按钮展开标题、加粗、斜体、引用、列表、任务、代码块、链接、图片和分隔线操作。为保证双栏体验，Markdown 新窗口优先使用 1120×760 初始尺寸，并会按显示器可见区域收缩；也可通过最大化/还原按钮将当前窗口作为全屏工作区使用。独立窗口隐藏原生 Windows 标题栏，笔记标题、拖动手柄、置顶、透明度、最小化、最大化/还原和关闭操作都放在内容标题行内；透明度按钮可打开滑块，把当前窗口调整为 35% - 100% 不透明度，关闭窗口后恢复默认。预览内容可选中复制。窗口可通过标题行拖动并自由调整大小。
 
 ### 标签模式窗口 (`lib/pages/note_tag_window_page.dart`)
 
@@ -313,6 +411,46 @@ context.l10n.syncSuccess
 ```
 
 详见：`lib/ui/core/extensions/build_context_l10n.dart:3`
+
+## 9. 应用内更新
+
+基于 GitHub Release 的版本检测与下载安装，支持 **Android** 与 **Windows 桌面**。
+
+### 版本检测 (`lib/data/services/update_service.dart`)
+
+- 通过 GitHub API `GET /repos/NightsSky/casual/releases/latest` 获取最新发布版本，无需 Token（公开仓库）。
+- `AppRelease.isNewerVersion` 做语义化版本比较：去掉 `v` 前缀与 `+构建号`，逐段比较数字，缺失段补 0；无法解析时保守判定为“无更新”，避免误报。
+- 当前版本号来自 `package_info_plus`（读取原生构建配置，与 `pubspec.yaml` 的 `version` 一致）。
+
+### 平台下载策略（遵循跨平台规则）
+
+| 平台 | 资产选择 | 安装方式 | 下载目录 |
+| --- | --- | --- | --- |
+| Android | 优先 `.apk` | `open_filex` 调起系统安装器（需授权“安装未知应用”） | 外部存储 `updates/` |
+| Windows | 优先 `.exe`，退回 `.zip` | `open_filex` 运行安装器或在资源管理器打开压缩包 | 临时目录 `casual_updates/` |
+| 其他 | 无自动下载 | 降级为 `url_launcher` 打开 Release 页面 | — |
+
+下载带进度回传（`0~1`，总长未知时为不确定进度）；已存在且大小一致的文件会复用，避免重复下载。
+
+### 交互入口
+
+- **启动静默检查**：`main.dart` 的 `AppBootstrapGate` 就绪后静默检查，仅在发现新版本时弹出 `UpdateDialog`（子窗口引擎不参与）。
+- **手动检查**：设置页“关于”区新增“检查更新”项，展示当前版本号；已是最新时 Snackbar 提示，出错给出错误信息。
+- **更新对话框** (`lib/widgets/update_dialog.dart`)：展示新版本号、更新说明、下载进度与安装/打开发布页按钮，关闭时重置状态。
+
+### 状态管理 (`lib/providers/update_provider.dart`)
+
+`UpdateNotifier` 驱动 `idle → checking → available/upToDate → downloading → readyToInstall`（或 `error`）状态机，UI 按阶段渲染。
+
+### 发布流程 (`.github/workflows/release.yml`)
+
+推送形如 `v0.2.0` 的 tag 时触发，并行构建 Android APK 与 Windows zip，命名为 `casual-<版本>.apk` / `casual-windows-<版本>.zip` 上传到对应 Release，供应用检测下载。
+
+### 已知限制与注意事项
+
+- Android 首次安装需用户在系统设置中授予“安装未知应用”权限。
+- Windows 若发布 `.zip`，应用只能打开压缩包，需用户手动解压覆盖（对话框有提示）；发布 `.exe` 安装包体验更佳。
+- 版本比较依赖 tag 命名规范（`vX.Y.Z`），发布时务必与 `pubspec.yaml` 版本对齐。
 
 ## 相关文档
 

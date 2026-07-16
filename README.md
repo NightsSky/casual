@@ -4,13 +4,15 @@
 
 ## 功能特性
 
-- ✅ **Markdown 编辑** - 富文本工具栏，实时预览
+- ✅ **Markdown 工作区** - 编辑、分屏实时预览、专注全屏视图；Windows 可直接打开并保存电脑中的 Markdown 文件
 - ✅ **Git 同步** - 支持 GitHub 和 Gitee，双向同步
 - ✅ **定时提醒** - 助手通知，支持单次/每天/每周/每月/工作日重复，桌面与移动端本地通知
+- ✅ **多步骤计划** - 将目标拆成有序步骤，自动计算进度，支持逐步骤时间轴与独立提醒
 - ✅ **标签管理** - 多标签分类，快速筛选
 - ✅ **响应式布局** - 桌面/移动端自适应
 - ✅ **国际化** - 支持中文/英文切换
 - ✅ **本地优先** - 本地存储，离线可用
+- ✅ **应用内更新** - 检测 GitHub 最新发布版本，Android/Windows 可直接下载安装
 
 ## 快速开始
 
@@ -40,9 +42,13 @@ flutter run -d android
 flutter run -d chrome
 ```
 
+## 打开电脑中的 Markdown 文件（Windows）
+
+在笔记列表顶部点击文件夹按钮，选择 `.md`、`.markdown`、`.mdown` 或 `.mkdn` 文件即可打开。Windows 桌面端默认提供源码与渲染结果分屏，点击单个模式按钮可在仅编辑、分屏和仅预览之间循环切换，也可进入全屏专注视图；按 `Ctrl+S` 会将完整原文保存回所选文件。外部文件不会加入 Git 笔记仓库或自动同步。
+
 ## 配置 Git 同步
 
-1. 进入**设置**页面
+1. 进入**设置 → Git 平台配置**页面
 2. 选择 Git 平台（GitHub 或 Gitee）
 3. 填写仓库信息：
    - 用户名
@@ -92,13 +98,16 @@ lib/
 ├── pages/                   # 页面
 │   ├── notes_page.dart      # 笔记列表
 │   ├── editor_page.dart     # 编辑器
+│   ├── external_markdown_page.dart # 电脑中外部 Markdown 文件的独立编辑会话
 │   ├── reminder_page.dart   # 定时提醒
-│   ├── repo_page.dart       # 仓库管理
-│   ├── settings_page.dart   # 设置
+│   ├── plan_page.dart       # 多步骤计划编辑、步骤时间轴与执行动态
+│   ├── repo_page.dart       # 设置中的仓库管理
+│   ├── platform_config_page.dart # Git 平台配置
+│   ├── settings_page.dart   # 设置总览
 │   ├── token_help_page.dart # Token 获取帮助
 │   └── search_page.dart     # 搜索（遗留代码，已被助手功能取代，未接入导航）
 ├── providers/               # 状态管理（Riverpod）
-├── services/                # 应用服务（提醒调度等）
+├── services/                # 应用服务（提醒调度、外部 Markdown 文件读写等）
 ├── data/                    # 数据层（仓储 + 本地/远程服务）
 ├── domain/                  # 领域模型
 ├── ui/                      # 视图模型与 UI 扩展

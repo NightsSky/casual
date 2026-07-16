@@ -14,23 +14,31 @@ import 'layout/app_shell.dart';
 import 'l10n/generated/app_localizations.dart';
 import 'domain/models/note.dart';
 import 'pages/editor_page.dart';
+import 'pages/external_markdown_page.dart';
 import 'pages/note_tag_window_page.dart';
 import 'pages/note_window_page.dart';
 import 'pages/notes_page.dart';
 import 'pages/reminder_page.dart';
 import 'pages/reminder_alarm_window_page.dart';
+import 'pages/plan_page.dart';
+import 'pages/platform_config_page.dart';
 import 'pages/repo_page.dart';
 import 'pages/settings_page.dart';
 import 'pages/token_help_page.dart';
 import 'providers/git_provider.dart';
+import 'providers/markdown_editor_focus_provider.dart';
 import 'providers/notes_provider.dart';
+import 'providers/plan_provider.dart';
 import 'providers/reminder_provider.dart';
+import 'providers/update_provider.dart';
 import 'services/reminder_alarm_window_service.dart';
+import 'services/external_markdown_file_service.dart';
 import 'services/window_service.dart';
 import 'theme/app_theme.dart';
 import 'theme/constants.dart';
 import 'ui/core/extensions/build_context_l10n.dart';
 import 'widgets/reminder_alarm_host.dart';
+import 'widgets/update_dialog.dart';
 import 'widgets/window_close_handler.dart';
 
 Future<void> main(List<String> args) async {
@@ -128,9 +136,10 @@ final GoRouter _router = GoRouter(
         ),
         StatefulShellBranch(
           routes: [
+            // 2026-07-15 12:40:41（北京时间）：原仓库主分支调整为计划入口，承载目标、进度、时间轴和截止提醒。
             GoRoute(
-              path: '/repo',
-              builder: (context, state) => const RepoPage(),
+              path: '/plan',
+              builder: (context, state) => const PlanPage(),
             ),
           ],
         ),
@@ -140,9 +149,26 @@ final GoRouter _router = GoRouter(
               path: '/settings',
               builder: (context, state) => const SettingsPage(),
               routes: [
+                // 2026-07-15 12:40:41（北京时间）：仓库管理和平台配置作为设置分支的独立二级页面。
+                GoRoute(
+                  path: 'repository',
+                  builder: (context, state) => const RepoPage(),
+                ),
+                GoRoute(
+                  path: 'platform-config',
+                  builder: (context, state) => const PlatformConfigPage(),
+                  routes: [
+                    GoRoute(
+                      path: 'token-help',
+                      builder: (context, state) => const TokenHelpPage(),
+                    ),
+                  ],
+                ),
+                // 旧帮助地址继续可用，避免历史深链失效。
                 GoRoute(
                   path: 'token-help',
-                  builder: (context, state) => const TokenHelpPage(),
+                  redirect: (context, state) =>
+                      '/settings/platform-config/token-help',
                 ),
               ],
             ),
@@ -150,9 +176,29 @@ final GoRouter _router = GoRouter(
         ),
       ],
     ),
+    // 旧仓库地址统一迁移到设置内的仓库管理页。
+    GoRoute(
+      path: '/repo',
+      redirect: (context, state) => '/settings/repository',
+    ),
+    // 电脑中的 Markdown 作为独立文件会话打开，不能挂到笔记仓库路由中，
+    // 以免编辑后被误写入 Git 同步队列。
+    GoRoute(
+      path: '/external-markdown',
+      builder: (context, state) {
+        final file = state.extra;
+        if (file is ExternalMarkdownFile) {
+          return ExternalMarkdownPage(file: file);
+        }
+        return Scaffold(
+          body: Center(child: Text(context.l10n.missingExternalMarkdown)),
+        );
+      },
+    ),
   ],
 );
 
+/// 2026-07-15 12:40:41（北京时间）：设置二级页保持设置导航选中，计划分支独立映射。
 AppPage _pageForUri(Uri uri) {
   if (uri.path.startsWith('/notes/') && uri.pathSegments.length > 1) {
     return AppPage.editor;
@@ -163,8 +209,8 @@ AppPage _pageForUri(Uri uri) {
   switch (uri.path) {
     case '/reminder':
       return AppPage.reminder;
-    case '/repo':
-      return AppPage.repo;
+    case '/plan':
+      return AppPage.plan;
     case '/settings':
       return AppPage.settings;
     case '/notes':
@@ -173,11 +219,12 @@ AppPage _pageForUri(Uri uri) {
   }
 }
 
+/// 2026-07-15 12:40:41（北京时间）：主导航第三分支固定进入计划工作区。
 void _goToBranch(AppPage page, StatefulNavigationShell navigationShell) {
   final index = switch (page) {
     AppPage.notes || AppPage.editor => 0,
     AppPage.reminder => 1,
-    AppPage.repo => 2,
+    AppPage.plan => 2,
     AppPage.settings => 3,
   };
   navigationShell.goBranch(
@@ -235,6 +282,8 @@ class _AppBootstrapGateState extends ConsumerState<AppBootstrapGate> {
           setState(() {
             _isReady = true;
           });
+          // 应用就绪后静默检查更新，发现新版本才弹出对话框，不打扰用户。
+          _maybeCheckForUpdate();
         }
       } catch (error) {
         if (mounted) {
@@ -246,12 +295,23 @@ class _AppBootstrapGateState extends ConsumerState<AppBootstrapGate> {
     });
   }
 
+  /// 启动时静默检查更新（子窗口不会走到这里）。仅在发现更新时弹窗。
+  Future<void> _maybeCheckForUpdate() async {
+    await ref.read(updateProvider.notifier).checkForUpdate(silent: true);
+    if (!mounted) return;
+    if (ref.read(updateProvider).phase == UpdatePhase.available) {
+      await showUpdateDialog(context, ref);
+    }
+  }
+
   Future<void> _bootstrap() async {
     await Future.wait([
       ref.read(notesProvider.notifier).loadFromCache(),
       ref.read(gitProvider.notifier).loadConfig(),
     ]);
+    // 普通提醒和计划截止提醒都必须在应用启动时恢复，不能依赖用户先进入对应页面。
     ref.read(reminderProvider);
+    ref.read(planProvider);
   }
 
   @override
@@ -284,10 +344,12 @@ class _AppBootstrapGateState extends ConsumerState<AppBootstrapGate> {
 class _MobileNotesWithFab extends ConsumerStatefulWidget {
   const _MobileNotesWithFab({
     required this.onOpenNote,
+    required this.onOpenMarkdownFile,
     required this.onCreateNote,
   });
 
   final void Function(String noteId) onOpenNote;
+  final Future<void> Function() onOpenMarkdownFile;
   final void Function(NoteFormat format) onCreateNote;
 
   @override
@@ -343,7 +405,10 @@ class _MobileNotesWithFabState extends ConsumerState<_MobileNotesWithFab>
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        NotesPage(onOpenNote: widget.onOpenNote),
+        NotesPage(
+          onOpenNote: widget.onOpenNote,
+          onOpenMarkdownFile: widget.onOpenMarkdownFile,
+        ),
         // 遮罩层
         if (_isExpanded)
           Positioned.fill(
@@ -496,7 +561,11 @@ class NotesRoutePage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isDesktop = getScreenType(context) == ScreenType.desktop;
+    // Windows 窗口可缩小时仍保留桌面工作区，1024px 起可进入 Markdown 专注分屏。
+    final isDesktop = getScreenType(context) == ScreenType.desktop ||
+        (defaultTargetPlatform == TargetPlatform.windows &&
+            MediaQuery.sizeOf(context).width >= 1024);
+    final isEditorFocused = ref.watch(markdownEditorFocusProvider);
 
     // 桌面顶栏按钮与移动端悬浮按钮共用的创建流程：建笔记后跳转编辑器。
     void createNote(NoteFormat format) {
@@ -508,34 +577,62 @@ class NotesRoutePage extends ConsumerWidget {
       context.go('/notes/${note.id}?isNew=true');
     }
 
+    Future<void> openExternalMarkdownFile() async {
+      final messenger = ScaffoldMessenger.of(context);
+      try {
+        final file = await ExternalMarkdownFileService().pickMarkdownFile();
+        if (file == null || !context.mounted) return;
+        context.push('/external-markdown', extra: file);
+      } catch (error) {
+        if (!context.mounted) return;
+        messenger.showSnackBar(
+          SnackBar(
+            content:
+                Text(context.l10n.externalMarkdownOpenFailed(error.toString())),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+
     if (isDesktop) {
       if (noteId == null) {
         return NotesPage(
           onOpenNote: (selectedId) => context.go('/notes/$selectedId'),
+          onOpenMarkdownFile: openExternalMarkdownFile,
           onCreateNote: createNote,
         );
       }
 
-      return Row(
-        children: [
-          Expanded(
-            child: NotesPage(
-              onOpenNote: (selectedId) => context.go('/notes/$selectedId'),
-              onCreateNote: createNote,
+      return LayoutBuilder(
+        builder: (context, constraints) => Row(
+          children: [
+            SizedBox(
+              width: isEditorFocused ? 0 : constraints.maxWidth / 3,
+              child: Offstage(
+                offstage: isEditorFocused,
+                child: NotesPage(
+                  onOpenNote: (selectedId) => context.go('/notes/$selectedId'),
+                  onOpenMarkdownFile: openExternalMarkdownFile,
+                  onCreateNote: createNote,
+                ),
+              ),
             ),
-          ),
-          const VerticalDivider(width: 1, thickness: 1),
-          Expanded(
-            flex: 2,
-            child: EditorPage(
-              // 按 noteId 设 key，切换笔记时强制重建 State，触发 dispose 清理空笔记。
-              key: ValueKey(noteId),
-              noteId: noteId,
-              isNewNote: isNewNote,
-              onBack: () => context.go('/notes'),
+            SizedBox(
+              width: isEditorFocused ? 0 : 1,
+              child: const VerticalDivider(width: 1, thickness: 1),
             ),
-          ),
-        ],
+            Expanded(
+              child: EditorPage(
+                // 按 noteId 设 key，切换笔记时强制重建 State，触发 dispose 清理空笔记。
+                key: ValueKey(noteId),
+                noteId: noteId,
+                isNewNote: isNewNote,
+                onBack: () => context.go('/notes'),
+              ),
+            ),
+          ],
+        ),
       );
     }
 
@@ -550,6 +647,7 @@ class NotesRoutePage extends ConsumerWidget {
 
     return _MobileNotesWithFab(
       onOpenNote: (selectedId) => context.go('/notes/$selectedId'),
+      onOpenMarkdownFile: openExternalMarkdownFile,
       onCreateNote: createNote,
     );
   }

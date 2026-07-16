@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../theme/constants.dart';
 import '../ui/core/extensions/build_context_l10n.dart';
 
+/// 2026-07-15 12:40:41（北京时间）：Token 帮助页隶属于独立 Git 平台配置流程。
 class TokenHelpPage extends StatelessWidget {
   const TokenHelpPage({super.key});
 
@@ -64,8 +65,10 @@ class TokenHelpPage extends StatelessWidget {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.shield_outlined,
-                              color: AppColors.primary),
+                          const Icon(
+                            Icons.shield_outlined,
+                            color: AppColors.primary,
+                          ),
                           const SizedBox(width: AppSpacing.md),
                           Expanded(
                             child: Column(
@@ -140,7 +143,7 @@ class TokenHelpPage extends StatelessWidget {
               if (context.canPop()) {
                 context.pop();
               } else {
-                context.go('/settings');
+                context.go('/settings/platform-config');
               }
             },
           ),

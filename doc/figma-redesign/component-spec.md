@@ -7,7 +7,7 @@
 Items:
 - 笔记：article icon
 - 助手：alarm icon
-- 仓库：sync icon
+- 计划：event-note icon
 - 设置：settings icon
 
 Rules:
@@ -21,7 +21,7 @@ Items:
 - App 品牌：casual
 - 笔记
 - 助手
-- 仓库
+- 计划
 - 设置
 - 版本号：v0.1.0
 
@@ -117,7 +117,67 @@ Rules:
 - 桌面端正文区域限制最大宽度，保证阅读行长。
 - 独立窗口编辑时主编辑器只读并展示提示横幅。
 
-## Repository
+## Plan
+
+### Plan Card
+
+Content:
+- 计划标题与目标摘要
+- 整体生命周期状态标签
+- 自动进度和“已完成 X/Y 步”
+- 最近未完成步骤
+- 最后步骤的预计完成时间
+
+States:
+- not-started
+- in-progress
+- overdue
+- completed
+- terminated
+- selected（桌面双栏）
+
+### Step Timeline
+
+Content:
+- 步骤序号、标题和局部状态
+- 预计完成时间和独立提醒方式
+- 实际完成时间和完成说明
+- 完成步骤 / 撤销完成操作
+
+Rules:
+- 步骤按用户顺序正序展示，预计时间必须非递减。
+- 允许跳过前序步骤完成后续步骤。
+- 早期步骤逾期使用局部红色状态，不提前改变计划整体状态。
+- 已终止计划的步骤轴只读。
+
+### Activity Timeline
+
+Content:
+- 创建、计划信息修改、步骤集合修改
+- 步骤完成、步骤撤销、计划级执行记录
+- 计划自动完成和终止
+
+Rules:
+- 动态按发生时间倒序展示。
+- 步骤动态保留动作发生时的步骤标题，后续重命名不覆盖历史语义。
+
+### Plan Editor
+
+Content:
+- 计划标题、目标和开始时间
+- 至少一个步骤编辑卡
+- 每步标题、预计完成时间、提醒预设和自定义分钟数
+- 新增步骤的提醒预设默认为“到期时提醒”，用户可主动切换为“不提醒”
+- 添加、删除和拖动排序操作
+
+Validation:
+- 计划标题、目标和每个步骤标题必填。
+- 步骤预计时间不得早于计划开始时间。
+- 后一步预计时间不得早于前一步。
+- 最后一个步骤不可删除。
+- 自定义提醒分钟数限制为 1-525600。
+
+## Repository（设置内二级页）
 
 ### Status Card
 
@@ -187,7 +247,15 @@ Rules:
 - 当重复方式为“按间隔”时，隐藏固定时刻选择，显示小时和分钟。
 - 间隔总时长至少 1 分钟。
 
-## Settings
+## Settings Overview
+
+### Repository Entries
+
+Items:
+- 仓库管理
+- Git 平台配置
+
+## Git Platform Config（设置内二级页）
 
 ### Git Config Form
 
@@ -228,4 +296,3 @@ Action:
 Rules:
 - 必须二次确认。
 - 文案要明确不可恢复。
-

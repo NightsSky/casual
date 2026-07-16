@@ -90,7 +90,9 @@ class _ReminderAlarmWindowPageState extends State<ReminderAlarmWindowPage> {
       await windowManager.setResizable(false);
       await windowManager.setMinimizable(false);
       await windowManager.setMaximizable(false);
-      await windowManager.setHasShadow(true);
+      // Panel 自身已用 boxShadow 画投影；透明子窗口再叠系统阴影会在圆角外
+      // 留一圈淡淡的方形描边，这里关掉窗口阴影，边缘只保留卡片本身的圆角投影。
+      await windowManager.setHasShadow(false);
       await _moveToBottomRight();
       await windowManager.show(inactive: true);
     } on PlatformException catch (error) {

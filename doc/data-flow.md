@@ -51,6 +51,32 @@ NotesViewModel.updateNote()
 > 分配（`allocatePath`），空内容回退为「无标题」文案 / `untitled` 文件名。独立窗口
 > 回传主窗口的 title 对 txt 无效（主窗口按正文重新派生）。
 
+### 打开与保存外部 Markdown 文件（Windows）
+
+外部电脑文件和应用笔记是两条隔离的数据流，避免外部绝对路径被错误当成 Git 仓库相对路径：
+
+```text
+笔记列表顶栏「打开 Markdown 文件」
+    ↓
+ExternalMarkdownFileService.pickMarkdownFile()
+    ↓
+file_selector 系统文件选择器（.md / .markdown / .mdown / .mkdn）
+    ↓
+读取完整原文，作为 ExternalMarkdownFile(path, content)
+    ↓
+路由 /external-markdown（route extra）
+    ↓
+ExternalMarkdownPage 的独立 TextEditingController
+    ├─> 编辑 / 分屏实时预览 / 仅预览 / 专注视图
+    └─> Ctrl+S 或保存按钮
+            ↓
+        ExternalMarkdownFileService.saveMarkdownFile()
+            ↓
+        File.writeAsString(选择时的原路径)
+```
+
+该路径**不经过** `NotesNotifier.createNote/updateNote`、`shared_preferences`、`note_file_codec` 或 `SyncEngine`：不会写入 `notesProvider`，不会被 GitHub/Gitee 同步，也不会追加或剥离 YAML front matter。预览路径会剥离 front matter 后的正文，并以原文件目录解析相对图片；保存路径始终写回完整原文。保存失败时编辑器保留当前内容并提示错误；退出时如果仍有未保存修改，用户可选择继续编辑或放弃。Android/iOS 以只读预览降级，避免系统文件授权失效时把修改错误写入临时副本。
+
 ### 删除笔记
 
 ```
@@ -234,6 +260,8 @@ Android 端还依赖 Manifest 中的 ScheduledNotificationBootReceiver，
 
 独立窗口运行在单独的 Flutter 引擎/isolate 中，与主窗口不共享内存状态。**主窗口是唯一数据权威**：子窗口不直接读写 shared_preferences（两引擎缓存独立，直接写会整表覆盖），所有变更经窗口间 method channel 回流主窗口统一持久化。
 
+Markdown 子窗口默认采用编辑/预览分屏：左侧 `TextField` 和右侧 `MarkdownPreview` 共享同一 controller。输入触发 `_pushUpdate()` 时先刷新子窗口的预览，再经 `noteWindow.update` 回传主窗口；因此无论用户停留在仅编辑、分屏或仅预览，内容都沿用同一条 IPC 持久化链路。
+
 ### 拖出与打开
 
 ```
@@ -301,6 +329,66 @@ NoteWindowService._reconcile()
 - 主窗口经托盘「退出」：进程结束，所有独立窗口随之关闭；已输入内容因每次 onChanged 实时回传，不会丢失
 - 主窗口最小化到托盘：isolate 仍运行，独立窗口编辑与保存不受影响
 
+## 计划数据流
+
+### 创建与编辑多步骤计划
+
+```text
+用户填写计划标题、目标、开始时间和有序步骤
+    ↓
+每个步骤填写标题、预计完成时间和独立提醒（新建步骤默认到期时提醒）
+    ↓
+Plan.validateSteps() 校验至少一步、时间不早于开始且按顺序非递减
+    ↓
+Plan.create() / Plan.updatePlan()
+    ↓
+写入 created / detailsUpdated / stepsUpdated 执行动态
+    ↓
+PlanNotifier 持久化包含 steps 的完整计划快照
+    ↓
+为每个开启提醒且未完成的步骤注册 plan-{planId}-step-{stepId} 通知
+    ↓
+Riverpod 刷新列表、自动进度、步骤时间轴和执行动态
+```
+
+`Plan.progress` 由已完成步骤数量自动计算，`Plan.deadline` 取最后步骤预计完成时间，两者不单独持久化。应用启动时 `AppBootstrapGate` 初始化 `planProvider`，恢复所有仍有效的步骤提醒。
+
+Windows 调度同时在 `_nextFireAt` 和 `_scheduledReminders` 中保存触发点与完整提醒载荷。计划步骤提醒不进入普通 `reminders` 存储，轮询到点时优先读取内存载荷并通过 `windowsAlarmStream` 发送弹窗事件；选择当前分钟时按当前时间后 10 秒注册，避免分钟选择器产生的时间已经过期。
+
+### 完成、撤销和终止
+
+```text
+完成任意步骤
+    ↓
+Plan.completeStep(stepId, note)
+    ↓
+记录 completedAt、完成说明和 stepCompleted 动态
+    ↓
+取消该步骤提醒并重新计算整体进度
+    ↓
+全部步骤完成 → lifecycle=completed + completed 动态
+
+撤销步骤完成
+    ↓
+Plan.reopenStep(stepId)
+    ↓
+清除完成时间和说明，写入 stepReopened 动态
+    ↓
+计划恢复 active，并按有效时间重新注册步骤提醒
+
+终止计划
+    ↓
+保留步骤状态和执行动态，lifecycle=terminated
+    ↓
+取消该计划全部步骤提醒
+```
+
+步骤允许跳步完成。早期步骤达到预计时间后只计算为步骤逾期；只有到最后步骤时间仍未完成时，计划整体才进入已逾期状态。删除步骤会取消其提醒，最后一个步骤由领域层禁止删除。
+
+### 第一版数据迁移
+
+旧 JSON 没有 `steps` 时，`Plan.fromJson()` 创建确定标识的单个迁移步骤：标题取原目标、预计完成时间取原截止时间、提醒继承原计划提醒。原生命周期为完成时迁移步骤同步完成；原手动百分比写入 `stepsUpdated` 迁移动态，避免信息静默丢失。 `PlanNotifier` 恢复迁移数据时会取消第一版 `plan-{id}` 整体提醒，再注册 `plan-{planId}-step-{stepId}` 步骤提醒。
+
 ## 本地存储机制
 
 使用 `shared_preferences` 存储 JSON 格式数据：
@@ -359,6 +447,51 @@ NoteWindowService._reconcile()
 }
 ```
 
+### 计划存储
+
+**Key**: `gitnote_plans`
+
+计划使用内嵌有序步骤保存，进度和最终截止时间由步骤实时派生：
+
+```json
+[
+  {
+    "id": "uuid",
+    "title": "实施项目",
+    "goal": "完成项目交付",
+    "startAt": "ISO8601时间",
+    "steps": [
+      {
+        "id": "uuid",
+        "title": "完成项目创建",
+        "targetAt": "ISO8601时间",
+        "reminderEnabled": true,
+        "reminderMinutesBefore": 60,
+        "completedAt": "ISO8601时间或省略",
+        "completionNote": "步骤完成说明或省略"
+      }
+    ],
+    "lifecycle": "active|completed|terminated",
+    "createdAt": "ISO8601时间",
+    "updatedAt": "ISO8601时间",
+    "endedAt": "ISO8601时间或省略",
+    "timeline": [
+      {
+        "id": "uuid",
+        "type": "created|detailsUpdated|stepsUpdated|stepCompleted|stepReopened|recordAdded|completed|terminated",
+        "occurredAt": "ISO8601时间",
+        "stepId": "关联步骤 id 或省略",
+        "stepTitle": "动作发生时的步骤标题或省略",
+        "note": "可选说明",
+        "progress": 60
+      }
+    ]
+  }
+]
+```
+
+读取时单条损坏计划会被跳过，其余计划继续恢复；第一版顶层 `deadline`、`progress` 和提醒字段只用于兼容迁移，新版本保存不再写入这些派生或废弃字段。
+
 ### 提醒存储
 
 **Key**: `reminders`
@@ -384,6 +517,34 @@ NoteWindowService._reconcile()
 - 笔记存储：`lib/data/services/storage_service.dart`
 - Git 配置存储：`lib/data/repositories/git_config_repository.dart`
 - 提醒存储：`lib/services/reminder_service.dart:88-105`（`loadReminders`, `saveReminders`）、模型序列化 `lib/domain/models/reminder.dart:77-104`
+
+## 应用内更新数据流
+
+```
+启动就绪 / 手动点击「检查更新」
+  └─ updateProvider.checkForUpdate()
+      └─ UpdateService.checkForUpdate()
+          ├─ package_info_plus 读取当前版本
+          └─ GET .../releases/latest → AppRelease.fromJson
+      └─ AppRelease.isNewerVersion(远端 tag, 当前版本)
+          ├─ true  → phase=available，弹出 UpdateDialog
+          └─ false → phase=upToDate（静默检查则回到 idle）
+
+用户点击「下载并安装」
+  └─ updateProvider.download()
+      └─ AppRelease.assetForPlatform() 选平台资产
+      └─ UpdateService.downloadAsset(onProgress) 流式写入本地文件
+          └─ phase=downloading（进度回传）→ readyToInstall
+
+用户点击「立即安装」
+  └─ UpdateService.installDownloadedFile()
+      └─ open_filex 调起系统安装器（Android APK / Windows exe）
+         或资源管理器打开 zip
+```
+
+- **单向、无持久化**：更新状态仅存于内存（`updateProvider`），不落 SharedPreferences；关闭对话框即 `reset()`。
+- **失败降级**：无平台匹配资产或 `supportsInAppDownload` 为假时，改用 `url_launcher` 打开 Release 页面。
+- **静默检查**：`main.dart` 启动检查失败不打扰用户（回到 `idle`），仅手动检查才展示错误。
 
 ## 冲突处理（v2）
 

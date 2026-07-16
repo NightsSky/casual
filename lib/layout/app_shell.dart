@@ -1,9 +1,12 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/markdown_editor_focus_provider.dart';
 import '../theme/constants.dart';
 import '../ui/core/extensions/build_context_l10n.dart';
 
-enum AppPage { notes, reminder, repo, settings, editor }
+/// 2026-07-15 12:40:41（北京时间）：主导航第三项由仓库调整为计划，仓库功能转入设置分支。
+enum AppPage { notes, reminder, plan, settings, editor }
 
 class AppShell extends ConsumerStatefulWidget {
   final AppPage currentPage;
@@ -25,26 +28,39 @@ class _AppShellState extends ConsumerState<AppShell> {
   @override
   Widget build(BuildContext context) {
     final screenType = getScreenType(context);
-    final isDesktop = screenType == ScreenType.desktop;
+    // Windows 可缩放窗口在 1024px 起保持桌面导航，Markdown 分屏才能在
+    // 最小受支持桌面宽度下通过专注视图获得足够空间。
+    final isDesktop = screenType == ScreenType.desktop ||
+        (defaultTargetPlatform == TargetPlatform.windows &&
+            MediaQuery.sizeOf(context).width >= 1024);
+    final isEditorFocused = widget.currentPage == AppPage.editor &&
+        ref.watch(markdownEditorFocusProvider);
 
     if (isDesktop) {
-      return _buildDesktop();
+      return _buildDesktop(isEditorFocused);
     }
     return _buildMobile();
   }
 
-  Widget _buildDesktop() {
+  Widget _buildDesktop(bool isEditorFocused) {
     return Scaffold(
       body: Row(
         children: [
-          _buildSidebar(),
-          const VerticalDivider(width: 1, thickness: 1),
+          SizedBox(
+            width: isEditorFocused ? 0 : 240,
+            child: isEditorFocused ? const SizedBox.shrink() : _buildSidebar(),
+          ),
+          SizedBox(
+            width: isEditorFocused ? 0 : 1,
+            child: const VerticalDivider(width: 1, thickness: 1),
+          ),
           Expanded(child: widget.child),
         ],
       ),
     );
   }
 
+  /// 2026-07-15 12:40:41（北京时间）：桌面侧栏展示计划入口，不再直接暴露仓库管理。
   Widget _buildSidebar() {
     final items = [
       _NavItem(
@@ -52,9 +68,13 @@ class _AppShellState extends ConsumerState<AppShell> {
           label: context.l10n.notes,
           page: AppPage.notes),
       _NavItem(
-          icon: Icons.alarm_outlined, label: context.l10n.reminders, page: AppPage.reminder),
+          icon: Icons.alarm_outlined,
+          label: context.l10n.reminders,
+          page: AppPage.reminder),
       _NavItem(
-          icon: Icons.sync, label: context.l10n.repository, page: AppPage.repo),
+          icon: Icons.event_note_outlined,
+          label: context.l10n.plan,
+          page: AppPage.plan),
       _NavItem(
           icon: Icons.settings_outlined,
           label: context.l10n.settings,
@@ -107,6 +127,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     );
   }
 
+  /// 2026-07-15 12:40:41（北京时间）：移动端底部导航第三项进入响应式计划工作区。
   Widget _buildMobile() {
     final isEditor = widget.currentPage == AppPage.editor;
     return Scaffold(
@@ -124,7 +145,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                   widget.onNavigate?.call([
                     AppPage.notes,
                     AppPage.reminder,
-                    AppPage.repo,
+                    AppPage.plan,
                     AppPage.settings
                   ][index]);
                 },
@@ -140,8 +161,9 @@ class _AppShellState extends ConsumerState<AppShell> {
                     label: context.l10n.reminders,
                   ),
                   BottomNavigationBarItem(
-                    icon: const Icon(Icons.sync),
-                    label: context.l10n.repository,
+                    icon: const Icon(Icons.event_note_outlined),
+                    activeIcon: const Icon(Icons.event_note),
+                    label: context.l10n.plan,
                   ),
                   BottomNavigationBarItem(
                     icon: const Icon(Icons.settings_outlined),
@@ -161,7 +183,7 @@ class _AppShellState extends ConsumerState<AppShell> {
         return 0;
       case AppPage.reminder:
         return 1;
-      case AppPage.repo:
+      case AppPage.plan:
         return 2;
       case AppPage.settings:
         return 3;
@@ -239,6 +261,8 @@ class _DesktopNavItem extends StatelessWidget {
         return Icons.article;
       case Icons.alarm_outlined:
         return Icons.alarm;
+      case Icons.event_note_outlined:
+        return Icons.event_note;
       case Icons.settings_outlined:
         return Icons.settings;
       default:

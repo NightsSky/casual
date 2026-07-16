@@ -6,6 +6,7 @@
   "notes": "Notes",
   "search": "Search",
   "repository": "Repository",
+  "plan": "Plan",
   "settings": "Settings",
   "versionLabel": "v0.1.0",
   "untitledNote": "Untitled note",
@@ -13,6 +14,39 @@
   "newNote": "New note",
   "edit": "Edit",
   "preview": "Preview",
+  "openMarkdownFile": "Open Markdown file",
+  "markdownEditOnly": "Edit only",
+  "markdownSplitView": "Split edit and preview",
+  "markdownPreviewOnly": "Preview only",
+  "showMarkdownToolbar": "Show formatting toolbar",
+  "hideMarkdownToolbar": "Hide formatting toolbar",
+  "enterMarkdownFocus": "Full-screen edit/preview",
+  "exitMarkdownFocus": "Exit full-screen edit/preview",
+  "saveMarkdownFile": "Save (Ctrl+S)",
+  "externalMarkdownReadOnly": "External Markdown files are opened read-only on this platform. Edit and save the original file on Windows desktop.",
+  "externalMarkdownContentHint": "Markdown content",
+  "externalMarkdownSaved": "Saved to the original Markdown file",
+  "externalMarkdownSaveFailed": "Could not save the Markdown file: {error}",
+  "@externalMarkdownSaveFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "externalMarkdownOpenFailed": "Could not open the Markdown file: {error}",
+  "@externalMarkdownOpenFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "discardUnsavedChangesTitle": "Discard unsaved changes?",
+  "discardExternalMarkdownMessage": "This external Markdown file has not been saved to your computer.",
+  "continueEditing": "Keep editing",
+  "discardChanges": "Discard changes",
+  "missingExternalMarkdown": "No Markdown file was selected",
   "syncToRemote": "Sync to remote",
   "manageTags": "Manage tags",
   "exportMarkdown": "Export Markdown",
@@ -86,6 +120,7 @@
   },
   "neverSynced": "Not synced yet",
   "repositoryManagement": "Repository",
+  "repositoryManagementDescription": "Sync notes and review sync stats and logs",
   "notConnected": "Not connected",
   "connected": "Connected",
   "configureGitPlatformInSettings": "Configure your Git platform in Settings",
@@ -149,6 +184,7 @@
     }
   },
   "gitPlatformConfig": "Git platform",
+  "gitPlatformConfigDescription": "Configure GitHub or Gitee connection details",
   "platform": "Platform",
   "accessToken": "Access Token",
   "enterToken": "Enter token",
@@ -170,6 +206,34 @@
   "autoPushDescription": "Push changes after saving notes",
   "about": "About",
   "version": "Version",
+  "checkForUpdate": "Check for updates",
+  "checkingForUpdate": "Checking for updates...",
+  "updateAvailable": "New version available",
+  "upToDate": "You are on the latest version",
+  "updateNewVersion": "Version {version}",
+  "@updateNewVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "updateCurrentVersion": "Current version {version}",
+  "@updateCurrentVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "updateReleaseNotes": "Release notes",
+  "updateDownloadInstall": "Download & install",
+  "updateDownloading": "Downloading...",
+  "updateInstallNow": "Install now",
+  "updateOpenReleasePage": "Open release page",
+  "updateCheckFailed": "Update check failed",
+  "updateLater": "Later",
+  "updateWindowsZipHint": "After download, extract the archive and replace the existing app files.",
   "clearAllData": "Clear all data",
   "choosePlatform": "Choose platform",
   "saved": "Saved",
@@ -200,7 +264,7 @@
   "giteeTokenOfficialEntrance": "Official entry: https://gitee.com/profile/personal_access_tokens",
   "tokenSafetyTitle": "Save and paste",
   "tokenSafetyBody": "Tokens are usually shown in full only once, so copy and save yours immediately. Do not put it in public notes, screenshots, or commits. If it may have leaked, delete the old token and generate a new one.",
-  "tokenPasteTip": "After copying it, return to Settings, paste it into Access Token, save the configuration, and test the connection.",
+  "tokenPasteTip": "After copying it, return to Git platform, paste it into Access Token, save the configuration, and test the connection.",
   "reminder": "Assistant",
   "reminders": "Assistants",
   "addReminder": "Add Assistant",
@@ -313,5 +377,184 @@
   "noteWindowUnreachable": "Cannot reach the main window; edits are not being saved",
   "openAsTagWindow": "Open as sticky tag",
   "noteTagExpand": "Expand note",
-  "noteTagCollapse": "Collapse to tag"
+  "noteTagCollapse": "Collapse to tag",
+  "planPageSubtitle": "Break one goal into ordered steps and move it forward on a clear timeline.",
+  "createPlan": "New plan",
+  "planFilterActive": "Active",
+  "planFilterOverdue": "Overdue",
+  "planFilterCompleted": "Completed",
+  "planFilterTerminated": "Terminated",
+  "planNoPlansYet": "No plans yet",
+  "planCreateFirst": "Create a plan and start recording its progress.",
+  "planSelectPrompt": "Select a plan to view its timeline",
+  "planTitleLabel": "Plan title",
+  "planTitleHint": "For example: Release casual 1.0",
+  "planGoalLabel": "Goal",
+  "planGoalHint": "Describe the concrete result you want to achieve",
+  "planStartAt": "Start time",
+  "planDeadline": "Deadline",
+  "planReminder": "Deadline reminder",
+  "planReminderOff": "No reminder",
+  "planReminderAtDeadline": "At deadline",
+  "planReminderOneHourBefore": "1 hour before",
+  "planReminderOneDayBefore": "1 day before",
+  "planReminderCustom": "Custom",
+  "planReminderMinutes": "Minutes before deadline",
+  "planReminderMinutesHint": "Enter a number from 1 to 525600",
+  "planEdit": "Edit plan",
+  "planOverview": "Overview",
+  "planProgress": "Progress",
+  "planTimeline": "Timeline",
+  "planUpdateProgress": "Update progress",
+  "planAddRecord": "Add record",
+  "planComplete": "Complete plan",
+  "planTerminate": "Terminate plan",
+  "planDelete": "Delete plan",
+  "planRecordHint": "Record a result, issue, or next step...",
+  "planProgressNoteHint": "Optional note for this progress update...",
+  "planOptionalNote": "Optional note",
+  "planTerminationReason": "Termination reason (optional)",
+  "planStatusNotStarted": "Not started",
+  "planStatusInProgress": "In progress",
+  "planStatusOverdue": "Overdue",
+  "planStatusCompleted": "Completed",
+  "planStatusTerminated": "Terminated",
+  "planTimelineCreated": "Plan created",
+  "planTimelineDetailsUpdated": "Plan details updated",
+  "planTimelineProgress": "Progress updated to {progress}%",
+  "@planTimelineProgress": {
+    "placeholders": {
+      "progress": {
+        "type": "int"
+      }
+    }
+  },
+  "planTimelineRecord": "Execution record",
+  "planTimelineCompleted": "Plan completed",
+  "planTimelineTerminated": "Plan terminated",
+  "planRemainingDays": "{count} days remaining",
+  "@planRemainingDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planRemainingHours": "{count} hours remaining",
+  "@planRemainingHours": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planDueSoon": "Due soon",
+  "planOverdueDays": "{count} days overdue",
+  "@planOverdueDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planValidateTitle": "Enter a plan title",
+  "planValidateGoal": "Enter a concrete goal",
+  "planValidateDeadline": "Deadline must be later than the start time",
+  "planValidateReminder": "Enter valid reminder minutes",
+  "planSaveSuccess": "Plan saved",
+  "planDeleteSuccess": "Plan deleted",
+  "planOperationFailed": "Operation failed: {error}",
+  "@planOperationFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "planConfirmComplete": "Mark this plan as completed? Its progress will be set to 100%.",
+  "planConfirmTerminate": "Terminate this plan? Its current progress and history will be kept.",
+  "planConfirmDelete": "Delete \"{title}\"? This will also remove its timeline.",
+  "@planConfirmDelete": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "planRecordRequired": "Enter an execution record",
+  "planCreatedAt": "Created",
+  "planSteps": "Plan steps",
+  "planActivity": "Activity",
+  "planAddStep": "Add step",
+  "planRemoveStep": "Remove step",
+  "planReorderStep": "Drag to reorder",
+  "planStepNumber": "Step {index}",
+  "@planStepNumber": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "planStepTitle": "Step title",
+  "planStepTitleHint": "Describe the result of this step",
+  "planStepTarget": "Expected completion time",
+  "planCompletedSteps": "{completed}/{total} steps completed",
+  "@planCompletedSteps": {
+    "placeholders": {
+      "completed": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "planNextStep": "Next step",
+  "planNoNextStep": "All steps completed",
+  "planFinalDeadline": "Final deadline",
+  "planStepStatusPending": "Pending",
+  "planStepStatusOverdue": "Overdue",
+  "planStepStatusCompleted": "Completed",
+  "planCompleteStep": "Complete step",
+  "planReopenStep": "Reopen step",
+  "planConfirmReopenStep": "Reopen this step? The plan progress and status will be recalculated.",
+  "planStepCompletionNote": "Completion note (optional)",
+  "planStepCompletedAt": "Completed at {time}",
+  "@planStepCompletedAt": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "planValidateStepTitle": "Enter a title for every step",
+  "planValidateStepBeforeStart": "Step time cannot be earlier than the plan start time",
+  "planValidateStepOrder": "Each step time must be no earlier than the previous step",
+  "planAtLeastOneStep": "A plan must contain at least one step",
+  "planTimelineStepsUpdated": "Plan steps updated",
+  "planTimelineStepCompleted": "Completed step: {step}",
+  "@planTimelineStepCompleted": {
+    "placeholders": {
+      "step": {
+        "type": "String"
+      }
+    }
+  },
+  "planTimelineStepReopened": "Reopened step: {step}",
+  "@planTimelineStepReopened": {
+    "placeholders": {
+      "step": {
+        "type": "String"
+      }
+    }
+  },
+  "planTimelineLegacyProgress": "Legacy progress {progress}% migrated to a plan step",
+  "@planTimelineLegacyProgress": {
+    "placeholders": {
+      "progress": {
+        "type": "int"
+      }
+    }
+  }
 }

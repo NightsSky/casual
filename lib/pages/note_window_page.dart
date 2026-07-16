@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../domain/models/note.dart';
@@ -14,6 +13,9 @@ import '../theme/app_theme.dart';
 import '../theme/constants.dart';
 import '../ui/core/extensions/build_context_l10n.dart';
 import '../utils/markdown_utils.dart';
+import '../widgets/markdown_preview.dart';
+
+enum _NoteWindowMarkdownMode { edit, split, preview }
 
 /// 独立笔记窗口（仅 Windows 桌面）。
 ///
@@ -103,6 +105,10 @@ class _NoteWindowEditorPageState extends State<NoteWindowEditorPage>
   bool _isMaximized = false;
   double _windowOpacity = 1.0;
   late bool _isPreview;
+  late _NoteWindowMarkdownMode _markdownMode;
+
+  // 独立窗口本身是 Windows 专属工作区，默认收起工具栏以优先保证分屏可用高度。
+  bool _showMarkdownToolbar = false;
 
   static const double _minWindowOpacity = 0.35;
 
@@ -113,9 +119,12 @@ class _NoteWindowEditorPageState extends State<NoteWindowEditorPage>
     _titleController = TextEditingController(text: widget.initialTitle);
     _contentController = TextEditingController(text: widget.initialContent);
     _contentFocusNode = FocusNode();
-    // 独立窗口打开时统一先进入预览模式：Markdown 展示渲染结果，txt 展示只读纸张，
-    // 与主编辑器"打开已有笔记默认预览"的行为保持一致，需要修改时再切到编辑态。
-    _isPreview = true;
+    // Markdown 独立窗口默认分屏，拖出笔记后仍可同时编辑源码和核对渲染结果；
+    // txt 保留原有的只读预览默认值。
+    _markdownMode = widget.initialFormat == NoteFormat.markdown
+        ? _NoteWindowMarkdownMode.split
+        : _NoteWindowMarkdownMode.preview;
+    _isPreview = widget.initialFormat != NoteFormat.markdown;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(_configureNativeWindow());
     });
@@ -187,16 +196,29 @@ class _NoteWindowEditorPageState extends State<NoteWindowEditorPage>
 
   void _requestContentFocus() {
     if (!mounted) return;
-    // 预览态没有可编辑的正文 TextField，无需（也无法）聚焦。
-    if (_isPreview) return;
+    // 仅预览态没有可编辑的正文 TextField；分屏的源码面板仍可接收焦点。
+    if (_isPreview && _markdownMode != _NoteWindowMarkdownMode.split) return;
     _contentFocusNode.requestFocus();
   }
 
-  void _togglePreviewMode() {
+  void _toggleTxtPreviewMode() {
     setState(() => _isPreview = !_isPreview);
     if (!_isPreview) {
       // Windows 子窗口运行在独立 Flutter 引擎中，单靠 autofocus 偶尔拿不到
       // 可编辑控件焦点；切回编辑态后主动聚焦正文，保证输入法能绑定到 TextField。
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _requestContentFocus();
+      });
+    }
+  }
+
+  /// Markdown 独立窗口提供与主编辑器一致的编辑、分屏和预览三态。
+  void _setMarkdownMode(_NoteWindowMarkdownMode mode) {
+    setState(() {
+      _markdownMode = mode;
+      _isPreview = mode == _NoteWindowMarkdownMode.preview;
+    });
+    if (mode != _NoteWindowMarkdownMode.preview) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _requestContentFocus();
       });
@@ -373,9 +395,11 @@ class _NoteWindowEditorPageState extends State<NoteWindowEditorPage>
           const Divider(height: 1, thickness: 0.5),
           Expanded(
             child: isMarkdown
-                ? (_isPreview
-                    ? _buildMarkdownPreview(context)
-                    : _buildMarkdownEditor(context))
+                ? (_markdownMode == _NoteWindowMarkdownMode.split
+                    ? _buildMarkdownSplit(context)
+                    : (_markdownMode == _NoteWindowMarkdownMode.preview
+                        ? _buildMarkdownPreview(context)
+                        : _buildMarkdownEditor(context)))
                 : (_isPreview
                     ? _buildTxtPreview(context)
                     : _buildContentField(context)),
@@ -405,9 +429,8 @@ class _NoteWindowEditorPageState extends State<NoteWindowEditorPage>
     // md 保持可编辑，仅预览态只读。
     final isTxt = widget.initialFormat == NoteFormat.txt;
     final isTitleEditable = !isTxt && !_isPreview;
-    final displayTitle = isTxt
-        ? deriveTxtTitle(_contentController.text)
-        : _titleController.text;
+    final displayTitle =
+        isTxt ? deriveTxtTitle(_contentController.text) : _titleController.text;
     final titleText =
         displayTitle.isEmpty ? context.l10n.untitledNote : displayTitle;
 
@@ -486,14 +509,42 @@ class _NoteWindowEditorPageState extends State<NoteWindowEditorPage>
                     ),
                   ),
           ),
-          Tooltip(
+          if (isTxt)
+            Tooltip(
               message: _isPreview ? context.l10n.edit : context.l10n.preview,
               child: IconButton(
                 icon: Icon(
                   _isPreview ? Icons.edit_outlined : Icons.visibility_outlined,
                   size: 20,
                 ),
-                onPressed: _togglePreviewMode,
+                onPressed: _toggleTxtPreviewMode,
+                visualDensity: VisualDensity.compact,
+                style: IconButton.styleFrom(
+                  foregroundColor: AppColors.textSecondary,
+                  hoverColor: AppColors.primaryLight.withValues(alpha: 0.6),
+                  minimumSize: const Size(36, 36),
+                  padding: EdgeInsets.zero,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                  ),
+                ),
+              ),
+            )
+          else ...[
+            _buildMarkdownModeButton(context),
+            Tooltip(
+              message: _showMarkdownToolbar
+                  ? context.l10n.hideMarkdownToolbar
+                  : context.l10n.showMarkdownToolbar,
+              child: IconButton(
+                icon: Icon(
+                  _showMarkdownToolbar
+                      ? Icons.keyboard_hide_outlined
+                      : Icons.format_align_left,
+                  size: 19,
+                ),
+                onPressed: () => setState(
+                    () => _showMarkdownToolbar = !_showMarkdownToolbar),
                 visualDensity: VisualDensity.compact,
                 style: IconButton.styleFrom(
                   foregroundColor: AppColors.textSecondary,
@@ -506,6 +557,7 @@ class _NoteWindowEditorPageState extends State<NoteWindowEditorPage>
                 ),
               ),
             ),
+          ],
           Tooltip(
             message: _isAlwaysOnTop
                 ? context.l10n.noteWindowUnpinFromTop
@@ -551,6 +603,49 @@ class _NoteWindowEditorPageState extends State<NoteWindowEditorPage>
         ],
       ),
     );
+  }
+
+  /// 独立窗口用单个高亮图标标识当前 Markdown 视图，减少标题栏占用。
+  Widget _buildMarkdownModeButton(BuildContext context) {
+    final tooltip = switch (_markdownMode) {
+      _NoteWindowMarkdownMode.edit => context.l10n.markdownEditOnly,
+      _NoteWindowMarkdownMode.split => context.l10n.markdownSplitView,
+      _NoteWindowMarkdownMode.preview => context.l10n.markdownPreviewOnly,
+    };
+    final icon = switch (_markdownMode) {
+      _NoteWindowMarkdownMode.edit => Icons.edit_outlined,
+      _NoteWindowMarkdownMode.split => Icons.vertical_split,
+      _NoteWindowMarkdownMode.preview => Icons.visibility_outlined,
+    };
+
+    return Tooltip(
+      message: tooltip,
+      child: IconButton(
+        key: const ValueKey('noteWindowMarkdownModeCycleButton'),
+        icon: Icon(icon, size: 18),
+        onPressed: _cycleMarkdownMode,
+        visualDensity: VisualDensity.compact,
+        style: IconButton.styleFrom(
+          foregroundColor: AppColors.primary,
+          backgroundColor: AppColors.primaryLight.withValues(alpha: 0.65),
+          minimumSize: const Size(34, 34),
+          padding: EdgeInsets.zero,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.md),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 独立窗口始终具备足够的 Markdown 工作区，因此固定循环三种完整视图。
+  void _cycleMarkdownMode() {
+    final nextMode = switch (_markdownMode) {
+      _NoteWindowMarkdownMode.edit => _NoteWindowMarkdownMode.split,
+      _NoteWindowMarkdownMode.split => _NoteWindowMarkdownMode.preview,
+      _NoteWindowMarkdownMode.preview => _NoteWindowMarkdownMode.edit,
+    };
+    _setMarkdownMode(nextMode);
   }
 
   Widget _buildWindowControls(BuildContext context) {
@@ -739,9 +834,102 @@ class _NoteWindowEditorPageState extends State<NoteWindowEditorPage>
   Widget _buildMarkdownEditor(BuildContext context) {
     return Column(
       children: [
-        _buildMarkdownToolbar(context),
+        if (_showMarkdownToolbar) _buildMarkdownToolbar(context),
         Expanded(child: _buildContentField(context)),
       ],
+    );
+  }
+
+  /// 拖出的 Windows 笔记窗口默认分屏：两个面板共享同一 controller，
+  /// 输入经 IPC 回传主窗口，右侧随 State 刷新展示当前 Markdown 渲染结果。
+  Widget _buildMarkdownSplit(BuildContext context) {
+    return Container(
+      color: AppColors.bgSecondary,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isHorizontal = constraints.maxWidth >= 840;
+          return Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: SizedBox.expand(
+              child: isHorizontal
+                  ? Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(child: _buildMarkdownSplitSource(context)),
+                        const VerticalDivider(width: AppSpacing.md),
+                        Expanded(child: _buildMarkdownSplitPreview()),
+                      ],
+                    )
+                  : Column(
+                      children: [
+                        Expanded(child: _buildMarkdownSplitSource(context)),
+                        const Divider(height: AppSpacing.md),
+                        Expanded(child: _buildMarkdownSplitPreview()),
+                      ],
+                    ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildMarkdownSplitSource(BuildContext context) {
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: AppColors.bgTertiary,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: AppColors.borderColor, width: 0.8),
+      ),
+      child: Column(
+        children: [
+          if (_showMarkdownToolbar) _buildMarkdownToolbar(context),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: TextField(
+                key: const ValueKey('noteWindowMarkdownSplitSource'),
+                controller: _contentController,
+                focusNode: _contentFocusNode,
+                maxLines: null,
+                expands: true,
+                autofocus: true,
+                cursorColor: AppColors.primary,
+                style: const TextStyle(
+                  fontSize: AppFontSize.base,
+                  height: 1.72,
+                  color: AppColors.textPrimary,
+                  fontFamily: 'monospace',
+                ),
+                decoration: InputDecoration(
+                  hintText: context.l10n.startWriting,
+                  hintStyle: const TextStyle(color: AppColors.textPlaceholder),
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                ),
+                onChanged: (_) => _pushUpdate(),
+                textAlignVertical: TextAlignVertical.top,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMarkdownSplitPreview() {
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.bgTertiary,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: AppColors.borderColor, width: 0.8),
+      ),
+      child: MarkdownPreview(data: _contentController.text),
     );
   }
 
@@ -858,94 +1046,7 @@ class _NoteWindowEditorPageState extends State<NoteWindowEditorPage>
                         ),
                       ],
                     ),
-                    child: Markdown(
-                      data: _contentController.text,
-                      selectable: true,
-                      padding: EdgeInsets.zero,
-                      styleSheet: MarkdownStyleSheet(
-                        h1: const TextStyle(
-                          fontSize: AppFontSize.xxl,
-                          fontWeight: FontWeight.w600,
-                          height: 1.3,
-                          color: AppColors.textPrimary,
-                          fontFamily: 'serif',
-                        ),
-                        h1Padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                        h2: const TextStyle(
-                          fontSize: AppFontSize.xl,
-                          fontWeight: FontWeight.w600,
-                          height: 1.35,
-                          color: AppColors.textPrimary,
-                          fontFamily: 'serif',
-                        ),
-                        h2Padding: const EdgeInsets.only(top: AppSpacing.xs),
-                        h3: const TextStyle(
-                          fontSize: AppFontSize.lg,
-                          fontWeight: FontWeight.w600,
-                          height: 1.45,
-                          color: AppColors.textPrimary,
-                        ),
-                        p: const TextStyle(
-                          fontSize: AppFontSize.base,
-                          height: 1.82,
-                          color: AppColors.textSecondary,
-                        ),
-                        pPadding: const EdgeInsets.only(bottom: AppSpacing.xs),
-                        blockSpacing: AppSpacing.md,
-                        listIndent: AppSpacing.xl,
-                        listBullet: const TextStyle(
-                          fontSize: AppFontSize.base,
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        code: const TextStyle(
-                          fontSize: AppFontSize.sm,
-                          color: AppColors.primaryDark,
-                          backgroundColor: AppColors.primaryLight,
-                          fontFamily: 'monospace',
-                        ),
-                        codeblockDecoration: BoxDecoration(
-                          color: AppColors.primaryLight.withValues(alpha: 0.5),
-                          borderRadius: BorderRadius.circular(AppRadius.md),
-                          border: Border.all(
-                            color: AppColors.borderColor,
-                            width: 1,
-                          ),
-                        ),
-                        codeblockPadding: const EdgeInsets.all(AppSpacing.md),
-                        blockquote: const TextStyle(
-                          fontSize: AppFontSize.base,
-                          height: 1.82,
-                          color: AppColors.textSecondary,
-                          fontStyle: FontStyle.italic,
-                        ),
-                        blockquotePadding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.md,
-                          vertical: AppSpacing.sm,
-                        ),
-                        blockquoteDecoration: BoxDecoration(
-                          border: const Border(
-                            left: BorderSide(
-                              color: AppColors.primary,
-                              width: 3,
-                            ),
-                          ),
-                          color: AppColors.primaryLight.withValues(alpha: 0.28),
-                        ),
-                        a: const TextStyle(
-                          color: AppColors.primary,
-                          decoration: TextDecoration.underline,
-                        ),
-                        horizontalRuleDecoration: const BoxDecoration(
-                          border: Border(
-                            top: BorderSide(
-                              color: AppColors.borderColor,
-                              width: 1,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
+                    child: MarkdownPreview(data: _contentController.text),
                   ),
                 ),
               ),

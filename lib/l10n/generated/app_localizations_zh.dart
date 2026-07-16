@@ -21,6 +21,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get repository => '仓库';
 
   @override
+  String get plan => '计划';
+
+  @override
   String get settings => '设置';
 
   @override
@@ -40,6 +43,68 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get preview => '预览';
+
+  @override
+  String get openMarkdownFile => '打开 Markdown 文件';
+
+  @override
+  String get markdownEditOnly => '仅编辑';
+
+  @override
+  String get markdownSplitView => '编辑与预览分屏';
+
+  @override
+  String get markdownPreviewOnly => '仅预览';
+
+  @override
+  String get showMarkdownToolbar => '显示格式工具栏';
+
+  @override
+  String get hideMarkdownToolbar => '隐藏格式工具栏';
+
+  @override
+  String get enterMarkdownFocus => '全屏编辑/预览';
+
+  @override
+  String get exitMarkdownFocus => '退出全屏编辑/预览';
+
+  @override
+  String get saveMarkdownFile => '保存（Ctrl+S）';
+
+  @override
+  String get externalMarkdownReadOnly =>
+      '当前平台以只读方式打开外部 Markdown 文件；请在 Windows 桌面端编辑并保存原文件。';
+
+  @override
+  String get externalMarkdownContentHint => 'Markdown 内容';
+
+  @override
+  String get externalMarkdownSaved => '已保存到原 Markdown 文件';
+
+  @override
+  String externalMarkdownSaveFailed(String error) {
+    return '保存 Markdown 文件失败：$error';
+  }
+
+  @override
+  String externalMarkdownOpenFailed(String error) {
+    return '打开 Markdown 文件失败：$error';
+  }
+
+  @override
+  String get discardUnsavedChangesTitle => '放弃未保存的修改？';
+
+  @override
+  String get discardExternalMarkdownMessage => '这篇外部 Markdown 文件尚未保存到电脑。';
+
+  @override
+  String get continueEditing => '继续编辑';
+
+  @override
+  String get discardChanges => '放弃修改';
+
+  @override
+  String get missingExternalMarkdown => '未选择要打开的 Markdown 文件';
 
   @override
   String get syncToRemote => '同步到远程';
@@ -157,6 +222,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get repositoryManagement => '仓库管理';
 
   @override
+  String get repositoryManagementDescription => '同步笔记、查看同步统计与记录';
+
+  @override
   String get notConnected => '未连接';
 
   @override
@@ -261,6 +329,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get gitPlatformConfig => 'Git 平台配置';
 
   @override
+  String get gitPlatformConfigDescription => '配置 GitHub 或 Gitee 连接信息';
+
+  @override
   String get platform => '平台';
 
   @override
@@ -322,6 +393,52 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get version => '版本';
+
+  @override
+  String get checkForUpdate => '检查更新';
+
+  @override
+  String get checkingForUpdate => '正在检查更新...';
+
+  @override
+  String get updateAvailable => '发现新版本';
+
+  @override
+  String get upToDate => '已是最新版本';
+
+  @override
+  String updateNewVersion(String version) {
+    return '版本 $version';
+  }
+
+  @override
+  String updateCurrentVersion(String version) {
+    return '当前版本 $version';
+  }
+
+  @override
+  String get updateReleaseNotes => '更新说明';
+
+  @override
+  String get updateDownloadInstall => '下载并安装';
+
+  @override
+  String get updateDownloading => '正在下载...';
+
+  @override
+  String get updateInstallNow => '立即安装';
+
+  @override
+  String get updateOpenReleasePage => '打开发布页面';
+
+  @override
+  String get updateCheckFailed => '检查更新失败';
+
+  @override
+  String get updateLater => '稍后';
+
+  @override
+  String get updateWindowsZipHint => '下载完成后，请解压压缩包并覆盖现有应用文件。';
 
   @override
   String get clearAllData => '清除所有数据';
@@ -423,7 +540,7 @@ class AppLocalizationsZh extends AppLocalizations {
       'Token 通常只在生成时完整显示一次，请立即复制保存。不要把 token 写进公开笔记、截图或提交记录；如果怀疑泄露，请在平台里删除旧 token 并重新生成。';
 
   @override
-  String get tokenPasteTip => '复制后回到设置页，粘贴到 Access Token，保存配置并测试连接。';
+  String get tokenPasteTip => '复制后回到 Git 平台配置页，粘贴到 Access Token，保存配置并测试连接。';
 
   @override
   String get reminder => '助手';
@@ -630,4 +747,304 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get noteTagCollapse => '收起为标签';
+
+  @override
+  String get planPageSubtitle => '把一个目标拆成有序步骤，在清晰的时间轴上逐步推进。';
+
+  @override
+  String get createPlan => '新建计划';
+
+  @override
+  String get planFilterActive => '进行中';
+
+  @override
+  String get planFilterOverdue => '已逾期';
+
+  @override
+  String get planFilterCompleted => '已完成';
+
+  @override
+  String get planFilterTerminated => '已终止';
+
+  @override
+  String get planNoPlansYet => '还没有计划';
+
+  @override
+  String get planCreateFirst => '创建一个计划，开始记录目标的推进过程。';
+
+  @override
+  String get planSelectPrompt => '选择一个计划查看执行时间轴';
+
+  @override
+  String get planTitleLabel => '计划标题';
+
+  @override
+  String get planTitleHint => '例如：发布 casual 1.0';
+
+  @override
+  String get planGoalLabel => '计划目标';
+
+  @override
+  String get planGoalHint => '描述最终希望达成的具体结果';
+
+  @override
+  String get planStartAt => '开始时间';
+
+  @override
+  String get planDeadline => '截止时间';
+
+  @override
+  String get planReminder => '截止提醒';
+
+  @override
+  String get planReminderOff => '不提醒';
+
+  @override
+  String get planReminderAtDeadline => '截止时提醒';
+
+  @override
+  String get planReminderOneHourBefore => '提前 1 小时';
+
+  @override
+  String get planReminderOneDayBefore => '提前 1 天';
+
+  @override
+  String get planReminderCustom => '自定义';
+
+  @override
+  String get planReminderMinutes => '提前分钟数';
+
+  @override
+  String get planReminderMinutesHint => '请输入 1 到 525600 之间的分钟数';
+
+  @override
+  String get planEdit => '编辑计划';
+
+  @override
+  String get planOverview => '计划概览';
+
+  @override
+  String get planProgress => '当前进度';
+
+  @override
+  String get planTimeline => '执行时间轴';
+
+  @override
+  String get planUpdateProgress => '更新进度';
+
+  @override
+  String get planAddRecord => '添加记录';
+
+  @override
+  String get planComplete => '完成计划';
+
+  @override
+  String get planTerminate => '终止计划';
+
+  @override
+  String get planDelete => '删除计划';
+
+  @override
+  String get planRecordHint => '记录阶段成果、遇到的问题或下一步安排……';
+
+  @override
+  String get planProgressNoteHint => '补充本次进度变化的说明（可选）……';
+
+  @override
+  String get planOptionalNote => '完成说明（可选）';
+
+  @override
+  String get planTerminationReason => '终止原因（可选）';
+
+  @override
+  String get planStatusNotStarted => '未开始';
+
+  @override
+  String get planStatusInProgress => '进行中';
+
+  @override
+  String get planStatusOverdue => '已逾期';
+
+  @override
+  String get planStatusCompleted => '已完成';
+
+  @override
+  String get planStatusTerminated => '已终止';
+
+  @override
+  String get planTimelineCreated => '创建计划';
+
+  @override
+  String get planTimelineDetailsUpdated => '更新计划信息';
+
+  @override
+  String planTimelineProgress(int progress) {
+    return '进度更新至 $progress%';
+  }
+
+  @override
+  String get planTimelineRecord => '执行记录';
+
+  @override
+  String get planTimelineCompleted => '完成计划';
+
+  @override
+  String get planTimelineTerminated => '终止计划';
+
+  @override
+  String planRemainingDays(int count) {
+    return '剩余 $count 天';
+  }
+
+  @override
+  String planRemainingHours(int count) {
+    return '剩余 $count 小时';
+  }
+
+  @override
+  String get planDueSoon => '即将截止';
+
+  @override
+  String planOverdueDays(int count) {
+    return '已逾期 $count 天';
+  }
+
+  @override
+  String get planValidateTitle => '请输入计划标题';
+
+  @override
+  String get planValidateGoal => '请输入明确的计划目标';
+
+  @override
+  String get planValidateDeadline => '截止时间必须晚于开始时间';
+
+  @override
+  String get planValidateReminder => '请输入有效的提醒分钟数';
+
+  @override
+  String get planSaveSuccess => '计划已保存';
+
+  @override
+  String get planDeleteSuccess => '计划已删除';
+
+  @override
+  String planOperationFailed(String error) {
+    return '操作失败：$error';
+  }
+
+  @override
+  String get planConfirmComplete => '确认完成该计划吗？完成后进度将自动设为 100%。';
+
+  @override
+  String get planConfirmTerminate => '确认终止该计划吗？当前进度和历史记录会被保留。';
+
+  @override
+  String planConfirmDelete(String title) {
+    return '确定删除“$title”吗？对应时间轴也会一起删除。';
+  }
+
+  @override
+  String get planRecordRequired => '请输入执行记录';
+
+  @override
+  String get planCreatedAt => '创建时间';
+
+  @override
+  String get planSteps => '计划步骤';
+
+  @override
+  String get planActivity => '执行动态';
+
+  @override
+  String get planAddStep => '添加步骤';
+
+  @override
+  String get planRemoveStep => '删除步骤';
+
+  @override
+  String get planReorderStep => '拖动调整顺序';
+
+  @override
+  String planStepNumber(int index) {
+    return '第 $index 步';
+  }
+
+  @override
+  String get planStepTitle => '步骤标题';
+
+  @override
+  String get planStepTitleHint => '描述这一步需要达成的结果';
+
+  @override
+  String get planStepTarget => '预计完成时间';
+
+  @override
+  String planCompletedSteps(int completed, int total) {
+    return '已完成 $completed/$total 步';
+  }
+
+  @override
+  String get planNextStep => '下一步';
+
+  @override
+  String get planNoNextStep => '全部步骤已完成';
+
+  @override
+  String get planFinalDeadline => '最终截止时间';
+
+  @override
+  String get planStepStatusPending => '待完成';
+
+  @override
+  String get planStepStatusOverdue => '已逾期';
+
+  @override
+  String get planStepStatusCompleted => '已完成';
+
+  @override
+  String get planCompleteStep => '完成步骤';
+
+  @override
+  String get planReopenStep => '撤销完成';
+
+  @override
+  String get planConfirmReopenStep => '确认撤销该步骤的完成状态吗？计划进度和状态将重新计算。';
+
+  @override
+  String get planStepCompletionNote => '完成说明（可选）';
+
+  @override
+  String planStepCompletedAt(String time) {
+    return '完成于 $time';
+  }
+
+  @override
+  String get planValidateStepTitle => '请填写每个计划步骤的标题';
+
+  @override
+  String get planValidateStepBeforeStart => '步骤预计时间不能早于计划开始时间';
+
+  @override
+  String get planValidateStepOrder => '后一步预计时间不能早于前一步';
+
+  @override
+  String get planAtLeastOneStep => '计划至少需要保留一个步骤';
+
+  @override
+  String get planTimelineStepsUpdated => '更新计划步骤';
+
+  @override
+  String planTimelineStepCompleted(String step) {
+    return '完成步骤：$step';
+  }
+
+  @override
+  String planTimelineStepReopened(String step) {
+    return '撤销步骤完成：$step';
+  }
+
+  @override
+  String planTimelineLegacyProgress(int progress) {
+    return '原计划进度 $progress% 已迁移为计划步骤';
+  }
 }

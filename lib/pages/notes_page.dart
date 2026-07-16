@@ -15,11 +15,19 @@ import '../utils/markdown_utils.dart';
 class NotesPage extends ConsumerStatefulWidget {
   final void Function(String noteId)? onOpenNote;
 
+  /// 通过系统文件选择器打开电脑中的 Markdown 文件（Windows 支持原路径保存）。
+  final Future<void> Function()? onOpenMarkdownFile;
+
   /// 顶栏"新建笔记"入口的回调，为 null 时不显示按钮。
   /// 桌面布局由路由层传入；移动布局不传，使用悬浮按钮（见 main.dart _MobileNotesWithFab）。
   final void Function(NoteFormat format)? onCreateNote;
 
-  const NotesPage({super.key, this.onOpenNote, this.onCreateNote});
+  const NotesPage({
+    super.key,
+    this.onOpenNote,
+    this.onOpenMarkdownFile,
+    this.onCreateNote,
+  });
 
   @override
   ConsumerState<NotesPage> createState() => _NotesPageState();
@@ -82,6 +90,18 @@ class _NotesPageState extends ConsumerState<NotesPage> {
           ),
           if (widget.onCreateNote != null) ...[
             _CreatePopup(onCreate: widget.onCreateNote!),
+            const SizedBox(width: AppSpacing.sm),
+          ],
+          if (widget.onOpenMarkdownFile != null) ...[
+            Tooltip(
+              message: context.l10n.openMarkdownFile,
+              child: _ActionIcon(
+                icon: Icons.folder_open_outlined,
+                onTap: () {
+                  widget.onOpenMarkdownFile!();
+                },
+              ),
+            ),
             const SizedBox(width: AppSpacing.sm),
           ],
           _ActionIcon(
@@ -408,7 +428,8 @@ class _NotesPageState extends ConsumerState<NotesPage> {
 
       // 冲突裁决（§7.2）：逐篇弹窗二选一，批量落地后再触发一次同步推送。
       if (report.pendingConflicts.isNotEmpty) {
-        final resolutions = await _handleConflicts(context, report.pendingConflicts);
+        final resolutions =
+            await _handleConflicts(context, report.pendingConflicts);
         if (resolutions != null && resolutions.isNotEmpty) {
           await gitNotifier.resolveConflicts(resolutions);
           // 用户选了「保留本地」的篇目需推送覆盖远端，再同步一次。
@@ -661,6 +682,7 @@ class _NoteDragFeedback extends StatelessWidget {
   }
 }
 
+/// 笔记列表卡片集中展示格式、标题、摘要、同步状态和更新时间。
 class _NoteCard extends StatelessWidget {
   final Note note;
   final VoidCallback onTap;
@@ -680,6 +702,13 @@ class _NoteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 格式标识固定放在标题左侧：Markdown 使用代码图标与主色，
+    // TXT 使用文档图标与中性色，不依赖文件名也能在所有平台快速区分。
+    final isMarkdown = note.format == NoteFormat.markdown;
+    final formatLabel = isMarkdown ? 'MD' : 'TXT';
+    final formatColor =
+        isMarkdown ? AppColors.primary : AppColors.textSecondary;
+
     return Card(
       margin: const EdgeInsets.only(bottom: AppSpacing.md),
       child: InkWell(
@@ -694,6 +723,25 @@ class _NoteCard extends StatelessWidget {
             children: [
               Row(
                 children: [
+                  Tooltip(
+                    message: formatLabel,
+                    child: Container(
+                      key: ValueKey('noteFormatBadge-${note.id}'),
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: formatColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                      ),
+                      child: Icon(
+                        isMarkdown ? Icons.code_rounded : Icons.notes_rounded,
+                        size: 16,
+                        color: formatColor,
+                        semanticLabel: formatLabel,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Text(
                       note.title.isEmpty

@@ -42,7 +42,10 @@ class NoteWindowService {
   Timer? _reconcileTimer;
   bool _handlerInstalled = false;
 
-  static const _windowSize = Size(520, 640);
+  static const _txtWindowSize = Size(520, 640);
+  // Markdown 默认分屏需要足够宽度容纳源码与渲染两列；专用初始尺寸避免新窗口
+  // 一打开就退化成上下两块狭窄面板，用户仍可按需调整或最大化窗口。
+  static const _markdownWindowSize = Size(1120, 760);
   static const _reconcileInterval = Duration(seconds: 2);
 
   /// 标签模式窗口的初始尺寸：默认以折叠的胶囊态呈现（仅一行首行文字）。
@@ -95,8 +98,9 @@ class NoteWindowService {
     } else {
       // 多个普通窗口按打开顺序阶梯错开，避免完全重叠。
       final cascade = (_noteWindows.length % 5) * 32.0;
+      final windowSize = await _resolveNoteWindowSize(note.format);
       await controller.setFrame(
-        Offset(160 + cascade, 120 + cascade) & _windowSize,
+        Offset(160 + cascade, 120 + cascade) & windowSize,
       );
     }
     // 子窗口原生标题栏只保留系统窗口控制按钮，笔记标题显示在窗口内容区，
@@ -134,6 +138,25 @@ class NoteWindowService {
       return Offset.zero & _tagWindowSize;
     } on MissingPluginException {
       return Offset.zero & _tagWindowSize;
+    }
+  }
+
+  /// 普通独立窗口优先使用格式对应的舒适尺寸，但不会超过当前主显示器可见区域，
+  /// 防止 1024px 笔记本上新开的 Markdown 分屏窗口落到屏幕外。
+  Future<Size> _resolveNoteWindowSize(NoteFormat format) async {
+    final desired =
+        format == NoteFormat.markdown ? _markdownWindowSize : _txtWindowSize;
+    try {
+      final display = await screenRetriever.getPrimaryDisplay();
+      final visibleSize = display.visibleSize ?? display.size;
+      return Size(
+        math.min(desired.width, math.max(360, visibleSize.width - 48)),
+        math.min(desired.height, math.max(360, visibleSize.height - 48)),
+      );
+    } on PlatformException {
+      return desired;
+    } on MissingPluginException {
+      return desired;
     }
   }
 
